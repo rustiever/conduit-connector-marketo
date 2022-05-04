@@ -1,0 +1,24 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.17
+
+      - name: Test
+        env:
+          MARKETO_CLIENT_ID: ${{ secrets.MARKETO_CLIENT_ID }}
+          MARKETO_CLIENT_SECRET: ${{ secrets.MARKETO_CLIENT_SECRET }}
+          MARKETO_CLIENT_ENDPOINT : ${{ secrets.MARKETO_CLIENT_ENDPOINT }}
+        run: make test GOTEST_FLAGS="-v -count=1"
