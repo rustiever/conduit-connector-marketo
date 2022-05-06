@@ -46,7 +46,6 @@ func TestParseGlobalConfig(t *testing.T) {
 				"polling_period": "",
 			},
 			expectedCon: SourceConfig{
-				Fields: []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
 				Config: globalConfig.Config{
 					ClientID:     "client_id",
 					ClientSecret: "client_secret",

@@ -38,6 +38,7 @@ func Specification() sdk.Specification {
 				Description: "The client secret for the Marketo instance.",
 			},
 			globalConfig.ClientEndpoint: {
+
 				Required:    true,
 				Default:     "",
 				Description: "The endpoint for the Marketo instance.",

@@ -29,6 +29,7 @@ const (
 	ClientSecret = "client_secret"
 	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
 	ClientEndpoint = "endpoint"
+
 )
 
 var (
@@ -36,6 +37,7 @@ var (
 )
 
 // Config represents configuration needed for Marketo
+
 type Config struct {
 	ClientID     string
 	ClientSecret string

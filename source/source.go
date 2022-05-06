@@ -69,6 +69,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 		return err
 	}
 	logger.Info().Msgf("Requested fields: %s", s.config.Fields)
+
 	config := minimarketo.ClientConfig{
 		ID:       s.config.ClientID,
 		Secret:   s.config.ClientSecret,

@@ -17,7 +17,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -30,7 +29,7 @@ const (
 
 	// Fields to retrieve from Marketo database
 	ConfigKeyFields = "fields"
-
+  
 	// DefaultPollingPeriod is the value assumed for the pooling period when the
 	// config omits the polling period parameter
 	DefaultPollingPeriod = "1m"
@@ -41,6 +40,7 @@ type SourceConfig struct {
 	config.Config
 	PollingPeriod time.Duration
 	Fields        []string
+
 }
 
 // ParseSourceConfig attempts to parse the configurations into a SourceConfig struct that Source could utilize
@@ -72,6 +72,7 @@ func ParseSourceConfig(ctx context.Context, cfg map[string]string) (SourceConfig
 			pollingPeriod,
 		)
 	}
+  
 	var fields []string
 	if cfg[ConfigKeyFields] == "" {
 		fields = getOrderedFields(nil)
