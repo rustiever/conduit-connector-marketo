@@ -1,6 +1,6 @@
 module github.com/rustiever/conduit-connector-marketo
 
-go 1.18
+go 1.17
 
 require github.com/conduitio/conduit-connector-sdk v0.2.0
 

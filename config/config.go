@@ -29,7 +29,6 @@ const (
 	ClientSecret = "client_secret"
 	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
 	ClientEndpoint = "endpoint"
-
 )
 
 var (

@@ -51,7 +51,8 @@ func TestParseGlobalConfig(t *testing.T) {
 					ClientSecret: "client_secret",
 					Endpoint:     "https://xxx-xxx-xxx.mktorest.com",
 				},
-				PollingPeriod: time.Duration(1 * time.Minute),
+				PollingPeriod: time.Minute,
+				Fields:        []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
 			},
 		},
 		{

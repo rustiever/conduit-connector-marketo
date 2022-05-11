@@ -52,8 +52,6 @@ func Test_ParseRecordPosition(t *testing.T) {
 			out: Position{
 				Key:  "test",
 				Type: TypeCDC,
-				// CreatedAt: time.UnixMilli(59),
-				// UpdatedAt: time.UnixMilli(59),
 			},
 		},
 		{

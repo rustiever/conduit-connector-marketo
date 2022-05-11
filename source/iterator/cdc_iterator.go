@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -28,28 +29,27 @@ import (
 )
 
 const (
-	ACTIVITY_TYPE_ID_NEW_LEAD         = 12
-	ACTIVITY_TYPE_ID_CHANGE_DATA_VALE = 13
+	ActivityTypeIDNewLead         = 12
+	ActivityTypeIDChangeDataValue = 13
 )
 
 type CDCIterator struct {
-	client        *marketoclient.Client
-	buffer        chan Record
-	ticker        *time.Ticker
-	pollingPeriod time.Duration
-	fields        []string
-	tomb          *tomb.Tomb
-	lastModified  time.Time
+	client       *marketoclient.Client
+	buffer       chan Record
+	ticker       *time.Ticker
+	fields       []string
+	tomb         *tomb.Tomb
+	lastModified time.Time
 }
 
 func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPeriod time.Duration, fields []string, lastModifiedTime time.Time) (*CDCIterator, error) {
 	iterator := &CDCIterator{
 		client:       client,
 		buffer:       make(chan Record, 1),
-		ticker:       time.NewTicker(pollingPeriod), // TODO revert polling period
+		ticker:       time.NewTicker(pollingPeriod),
 		tomb:         &tomb.Tomb{},
 		fields:       fields,
-		lastModified: lastModifiedTime,
+		lastModified: lastModifiedTime.Add(time.Second),
 	}
 	iterator.tomb.Go(func() error {
 		return iterator.poll(ctx)
@@ -74,8 +74,7 @@ func (c *CDCIterator) poll(ctx context.Context) error {
 
 func (c *CDCIterator) HasNext(ctx context.Context) bool {
 	logger := sdk.Logger(ctx).With().Str("Method", "Has Next").Logger()
-	// logger.Trace().Msg("Starting the Combined Iterator Next")
-	logger.Debug().Msg("Checking if the CDC iterator has next")
+	logger.Trace().Msg("Checking iterator has next record...")
 	return len(c.buffer) > 0 || !c.tomb.Alive() // if tomb is dead we return true so caller will fetch error with Next
 }
 
@@ -103,6 +102,7 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 			Type:      position.TypeCDC,
 			Key:       key,
 			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		}
 		pos, err := position.ToRecordPosition()
 		if err != nil {
@@ -163,14 +163,22 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		logger.Error().Err(err).Msg("Error while getting the changed leads")
 		return err
 	}
-
 	deletedLeadIds, err := c.GetDeletedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the deleted leads")
 		return err
 	}
-	for leadId := range changedLeadIds {
-		res, err := c.client.GetLeadById(ctx, leadId, c.fields)
+
+	for _, id := range deletedLeadIds {
+		c.buffer <- Record{
+			id:      id,
+			deleted: true,
+			data:    nil,
+		}
+	}
+
+	for _, id := range changedLeadIds {
+		res, err := c.client.GetLeadByID(id, c.fields)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while getting the lead")
 			return err
@@ -183,18 +191,10 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		}
 		for _, data := range dataMap {
 			c.buffer <- Record{
-				id:      leadId,
+				id:      id,
 				deleted: false,
 				data:    data,
 			}
-		}
-	}
-
-	for leadId := range deletedLeadIds {
-		c.buffer <- Record{
-			id:      leadId,
-			deleted: true,
-			data:    nil,
 		}
 	}
 
@@ -207,8 +207,8 @@ type Record struct {
 	deleted bool
 }
 
-func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) (map[int]struct{}, error) {
-	response, err := c.client.GetDeletedLeads(ctx, token)
+func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]int, error) {
+	response, err := c.client.GetDeletedLeads(token)
 	if err != nil {
 		return nil, err
 	}
@@ -220,20 +220,19 @@ func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) (map
 	if err != nil {
 		return nil, err
 	}
-	var leadIds = make(map[int]struct{})
+	var leadIds = make([]int, 0)
 	for _, deletedLeadResult := range deletedLeadResults {
 		var id = int(deletedLeadResult["leadId"].(float64))
-		leadIds[id] = struct{}{}
-
+		leadIds = append(leadIds, id)
 	}
 	return leadIds, nil
 }
 
-func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) (map[int]struct{}, error) {
+func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, error) {
 	var leadIds = make(map[int]struct{}) // using map to avoid duplicates
 	moreResult := true
 	for moreResult {
-		response, err := c.client.GetLeadChanges(ctx, token, c.fields)
+		response, err := c.client.GetLeadChanges(token, c.fields)
 		if err != nil {
 			return nil, err
 		}
@@ -248,12 +247,17 @@ func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) (map
 			return nil, err
 		}
 		for _, leadChangeResult := range leadChangeResults {
-			var activityTypeId = leadChangeResult["activityTypeId"].(float64)
-			if activityTypeId == ACTIVITY_TYPE_ID_NEW_LEAD || activityTypeId == ACTIVITY_TYPE_ID_CHANGE_DATA_VALE {
+			var activityTypeID = leadChangeResult["activityTypeId"].(float64)
+			if activityTypeID == ActivityTypeIDNewLead || activityTypeID == ActivityTypeIDChangeDataValue {
 				var id = int(leadChangeResult["leadId"].(float64))
 				leadIds[id] = struct{}{}
 			}
 		}
 	}
-	return leadIds, nil
+	keys := make([]int, 0, len(leadIds))
+	for k := range leadIds {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	return keys, nil
 }

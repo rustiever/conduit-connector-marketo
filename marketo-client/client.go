@@ -27,9 +27,9 @@ import (
 )
 
 var (
-	ErrEnqueueLimit = errors.New("Enqueue limit reached")
-	ErrZeroRecords  = errors.New("No records found")
-	ErrCannotCancel = errors.New("Cannot cancel export, since it is already in completed state")
+	ErrEnqueueLimit = errors.New("enqueue limit reached")
+	ErrZeroRecords  = errors.New("no records found")
+	ErrCannotCancel = errors.New("cannot cancel export, since it is already in completed state")
 )
 
 type Client struct {
@@ -44,7 +44,7 @@ func NewClient(config minimarketo.ClientConfig) (Client, error) {
 	return Client{client}, nil
 }
 
-func (c Client) CreateExportLeads(ctx context.Context, fields []string, startDate string, endDate string) (string, error) {
+func (c Client) CreateExportLeads(fields []string, startDate string, endDate string) (string, error) {
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"filter": map[string]interface{}{
 			"createdAt": map[string]string{
@@ -70,7 +70,7 @@ func (c Client) CreateExportLeads(ctx context.Context, fields []string, startDat
 		return "", err
 	}
 	if len(result) != 1 {
-		return "", fmt.Errorf("Unexpected response from Marketo rest API:%+v", result)
+		return "", fmt.Errorf("unexpected response from marketo rest api:%+v", result)
 	}
 	return result[0].ExportID, nil
 }
@@ -82,7 +82,7 @@ type CreateExportResult struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func (c Client) EnqueueExportLeads(ctx context.Context, exportID string) (string, error) {
+func (c Client) EnqueueExportLeads(exportID string) (string, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/enqueue.json", exportID)
 	response, err := c.Post(path, nil)
 	if err != nil {
@@ -98,7 +98,7 @@ func (c Client) EnqueueExportLeads(ctx context.Context, exportID string) (string
 	return exportID, nil
 }
 
-func (c Client) StatusOfExportLeads(ctx context.Context, exportID string) (StatusOfExportResult, error) {
+func (c Client) StatusOfExportLeads(exportID string) (StatusOfExportResult, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/status.json", exportID)
 	response, err := c.Get(path)
 	if err != nil {
@@ -112,7 +112,7 @@ func (c Client) StatusOfExportLeads(ctx context.Context, exportID string) (Statu
 		return StatusOfExportResult{}, err
 	}
 	if len(result) != 1 {
-		return StatusOfExportResult{}, fmt.Errorf("Unexpected response from Marketo rest API:%+v", result)
+		return StatusOfExportResult{}, fmt.Errorf("unexpected response from marketo rest api:%+v", result)
 	}
 	return result[0], nil
 }
@@ -130,7 +130,7 @@ type StatusOfExportResult struct {
 	FileChecksum    string    `json:"fileChecksum"`
 }
 
-func (c Client) CancelExportLeads(ctx context.Context, exportID string) error {
+func (c Client) CancelExportLeads(exportID string) error {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/cancel.json", exportID)
 	response, err := c.Post(path, nil)
 	if err != nil {
@@ -145,15 +145,15 @@ func (c Client) CancelExportLeads(ctx context.Context, exportID string) error {
 	return nil
 }
 
-func (c Client) FileExportLeads(endpoint string, exportID string) (*[]byte, error) {
+func (c Client) FileExportLeads(ctx context.Context, endpoint string, exportID string) (*[]byte, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/file.json", exportID)
 
-	req, err := http.NewRequest("GET", endpoint+path, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer"+c.getAuthToken())
+	req.Header.Set("Authorization", "Bearer"+c.GetAuthToken())
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (c Client) FileExportLeads(endpoint string, exportID string) (*[]byte, erro
 	return &body, nil
 }
 
-func (c Client) getAuthToken() string {
+func (c Client) GetAuthToken() string {
 	if c.GetTokenInfo().Expires.Before(time.Now().UTC()) {
 		_, _ = c.RefreshToken()
 	}
@@ -212,7 +212,7 @@ func (c Client) GetNextPageToken(sinceTime time.Time) (string, error) {
 	return response.NextPageToken, nil
 }
 
-func (c Client) GetLeadChanges(ctx context.Context, nextPageToken string, fields []string) (*minimarketo.Response, error) {
+func (c Client) GetLeadChanges(nextPageToken string, fields []string) (*minimarketo.Response, error) {
 	path := fmt.Sprintf("/rest/v1/activities/leadchanges.json?nextPageToken=%s&fields=%s", nextPageToken, strings.Join(fields, ","))
 	response, err := c.Get(path)
 	if err != nil {
@@ -224,7 +224,7 @@ func (c Client) GetLeadChanges(ctx context.Context, nextPageToken string, fields
 	return response, nil
 }
 
-func (c Client) GetDeletedLeads(ctx context.Context, nextPageToken string) (*json.RawMessage, error) {
+func (c Client) GetDeletedLeads(nextPageToken string) (*json.RawMessage, error) {
 	path := fmt.Sprintf("/rest/v1/activities/deletedleads.json?nextPageToken=%s", nextPageToken)
 	response, err := c.Get(path)
 	if err != nil {
@@ -236,7 +236,7 @@ func (c Client) GetDeletedLeads(ctx context.Context, nextPageToken string) (*jso
 	return &response.Result, nil
 }
 
-func (c Client) GetLeadById(ctx context.Context, id int, fields []string) (*json.RawMessage, error) {
+func (c Client) GetLeadByID(id int, fields []string) (*json.RawMessage, error) {
 	path := fmt.Sprintf("/rest/v1/lead/%d.json?fields=%s", id, strings.Join(fields, ","))
 	response, err := c.Get(path)
 	if err != nil {
@@ -256,3 +256,5 @@ func GetDataMap(keys []string, values []string) map[string]interface{} {
 	}
 	return dataMap
 }
+
+// methods for tests

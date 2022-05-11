@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package config
 
 import (
@@ -27,10 +26,8 @@ import (
 const (
 	// Marketo CDC polling period
 	ConfigKeyPollingPeriod = "pollingPeriod"
-
 	// Fields to retrieve from Marketo database
 	ConfigKeyFields = "fields"
-
 	// DefaultPollingPeriod is the value assumed for the pooling period when the
 	// config omits the polling period parameter
 	DefaultPollingPeriod = "1m"
@@ -75,7 +72,7 @@ func ParseSourceConfig(ctx context.Context, cfg map[string]string) (SourceConfig
 
 	var fields []string
 	if cfg[ConfigKeyFields] == "" {
-		fields = getOrderedFields(nil)
+		fields = getOrderedFields([]string{})
 	} else {
 		fields = getOrderedFields(strings.Split(cfg[ConfigKeyFields], ","))
 	}
@@ -90,7 +87,7 @@ func ParseSourceConfig(ctx context.Context, cfg map[string]string) (SourceConfig
 
 // returns default fields if no fields are specified and if some specfied prepends required fields
 func getOrderedFields(fields []string) []string {
-	if fields == nil || len(fields) == 0 {
+	if len(fields) == 0 {
 		return []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
 	}
 	var tempFields = []string{"id", "createdAt", "updatedAt"}

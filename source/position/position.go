@@ -26,11 +26,6 @@ const (
 	TypeCDC
 )
 
-const (
-	snapshotPrefixChar = 's'
-	cdcPrefixChar      = 'c'
-)
-
 type Type int
 
 type Position struct {

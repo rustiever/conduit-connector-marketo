@@ -42,10 +42,9 @@ type SnapshotIterator struct {
 	endpoint      string
 	fields        []string
 	client        *marketoclient.Client
-	exportId      string // look for cancellation
+	exportID      string
 	initialDate   time.Time
 	iteratorCount int
-	eg            *errgroup.Group
 	errChan       chan error
 	csvReader     chan *csv.Reader
 	buffer        chan []string
@@ -59,10 +58,11 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 
 	var err error
 	s := &SnapshotIterator{
-		endpoint: endpoint,
-		client:   &client,
-		fields:   fields,
-		errChan:  make(chan error),
+		endpoint:      endpoint,
+		client:        &client,
+		fields:        fields,
+		errChan:       make(chan error),
+		lastMaxModied: time.Time{},
 	}
 	eg, ctx := errgroup.WithContext(ctx)
 	s.initialDate, err = s.getLastProcessedDate(ctx, p)
@@ -136,11 +136,11 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 func (s *SnapshotIterator) stop(ctx context.Context) error {
 	logger := sdk.Logger(ctx).With().Str("Method", "Stop").Logger()
 	logger.Trace().Msg("Starting the SnapshotIterator Stop method")
-	if s.exportId == "" {
+	if s.exportID == "" {
 		logger.Trace().Msg("No exportId to cancel")
 		return nil
 	}
-	err := s.client.CancelExportLeads(ctx, s.exportId)
+	err := s.client.CancelExportLeads(s.exportID)
 	if errors.Is(err, marketoclient.ErrCannotCancel) {
 		logger.Err(err).Msg("Cannot cancel export")
 		return nil
@@ -206,13 +206,13 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 	logger := sdk.Logger(ctx).With().Str("Method", "getLeads").Logger()
 	logger.Trace().Msg("Starting the getLeads method")
 	var err error
-	s.exportId, err = s.client.CreateExportLeads(ctx, s.fields, startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339))
+	s.exportID, err = s.client.CreateExportLeads(s.fields, startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339))
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while creating export")
 		return err
 	}
 	err = s.withRetry(func() (bool, error) {
-		_, err := s.client.EnqueueExportLeads(ctx, s.exportId)
+		_, err := s.client.EnqueueExportLeads(s.exportID)
 		if errors.Is(err, marketoclient.ErrEnqueueLimit) {
 			logger.Trace().Msg("Enqueue limit reached")
 			return true, nil
@@ -229,7 +229,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 	}
 
 	err = s.withRetry(func() (bool, error) {
-		statusResult, err := s.client.StatusOfExportLeads(ctx, s.exportId)
+		statusResult, err := s.client.StatusOfExportLeads(s.exportID)
 		if err != nil {
 			logger.Err(err).Msg("Error while getting status of export")
 			return false, err
@@ -244,14 +244,14 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 		return true, nil
 	})
 	if errors.Is(err, marketoclient.ErrZeroRecords) {
-		logger.Trace().Msgf("Skipping,Zero records found for %s", s.exportId)
+		logger.Trace().Msgf("Skipping,Zero records found for %s", s.exportID)
 		return nil
 	}
 	if err != nil {
 		logger.Err(err).Msg("Error while getting status of export")
 		return err
 	}
-	bytes, err := s.client.FileExportLeads(s.endpoint, s.exportId)
+	bytes, err := s.client.FileExportLeads(ctx, s.endpoint, s.exportID)
 	if err != nil {
 		logger.Err(err).Msg("Error while getting file of export")
 		return err
@@ -313,7 +313,7 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 		logger.Err(err).Msg("Error while parsing updatedAt")
 		return sdk.Record{}, fmt.Errorf("error parsing updatedAt %w", err)
 	}
-	if s.lastMaxModied.Before(updatedAt) {
+	if updatedAt.After(s.lastMaxModied) {
 		s.lastMaxModied = updatedAt
 	}
 	position := position.Position{
@@ -347,7 +347,7 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 func (s *SnapshotIterator) getLastProcessedDate(ctx context.Context, p position.Position) (time.Time, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "getInitialDate").Logger()
 	logger.Trace().Msg("Starting the getInitialDate method")
-	var date time.Time = p.CreatedAt.Add(1 * time.Second)
+	var date = p.CreatedAt.Add(1 * time.Second)
 	var err error
 	if reflect.ValueOf(p).IsZero() {
 		date, err = s.getLeastDate(ctx, *s.client)
@@ -371,10 +371,10 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 	oldestTime := time.Now().UTC()
 	for _, v := range folderResult {
-		date, _, found := strings.Cut(v.CreatedAt, "+")
+		date, _, found := cut(v.CreatedAt, "+")
 		if !found {
 			logger.Error().Msgf("Error while parsing the date %s", v.CreatedAt)
-			return time.Time{}, fmt.Errorf("Error while parsing the date %s", v.CreatedAt)
+			return time.Time{}, fmt.Errorf("error while parsing the date %s", v.CreatedAt)
 		}
 		t, err := time.Parse(time.RFC3339, date)
 		if err != nil {
@@ -387,4 +387,15 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 
 	return oldestTime.UTC(), nil
+}
+
+// Cut cuts s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, "", false.
+func cut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, "", false
 }
