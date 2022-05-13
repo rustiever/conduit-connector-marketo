@@ -20,10 +20,11 @@ The Docker compose file at `test/docker-compose.yml` can be used to run the requ
 
 | name | part of | description | required | default value |
 |------|---------|-------------|----------|---------------|
-|`client_id`|source|The Client ID for Marketo Instance|true| |
-|`client_secret`|source|The Client Secret for Marketo Instance|true| |
-|`endpoint`|source|The Endpoint for Marketo Instance|true||
+|`ClientID`|source|The Client ID for Marketo Instance|true| |
+|`ClientSecret`|source|The Client Secret for Marketo Instance|true| |
+|`ClientEndpoint`|source|The Endpoint for Marketo Instance|true||
 |`polling period`|source|Polling time for CDC mode|false|`1m`|
+|`fields`|source|Fields to fetch from Leads database|false|`id, createdAt, updatedAt, firstName, lastName, email`|
 
 ### Known Issues & Limitations
 #### Snapshot mode:

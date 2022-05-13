@@ -73,7 +73,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 	config := minimarketo.ClientConfig{
 		ID:       s.config.ClientID,
 		Secret:   s.config.ClientSecret,
-		Endpoint: s.config.Endpoint,
+		Endpoint: s.config.ClientEndpoint,
 		Debug:    false,
 	}
 	s.client, err = marketoclient.NewClient(config)
@@ -81,7 +81,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 		logger.Error().Stack().Err(err).Msg("Error While Creating the Marketo Client")
 		return err
 	}
-	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.Endpoint, s.config.PollingPeriod, s.client, p, s.config.Fields)
+	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error while create a combined iterator")
 		return fmt.Errorf("couldn't create a combined iterator: %w", err)

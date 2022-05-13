@@ -24,11 +24,11 @@ import (
 
 const (
 	// ID: Marketo client ID
-	ClientID = "client_id"
+	ClientID = "ClientID"
 	// Secret: Marketo client secret
-	ClientSecret = "client_secret"
+	ClientSecret = "ClientSecret"
 	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
-	ClientEndpoint = "endpoint"
+	ClientEndpoint = "ClientEndpoint"
 )
 
 var (
@@ -38,9 +38,9 @@ var (
 // Config represents configuration needed for Marketo
 
 type Config struct {
-	ClientID     string
-	ClientSecret string
-	Endpoint     string
+	ClientID       string
+	ClientSecret   string
+	ClientEndpoint string
 }
 
 // Parse attempts to parse plugins.Config into a Config struct
@@ -77,9 +77,9 @@ func ParseGlobalConfig(ctx context.Context, cfg map[string]string) (Config, erro
 
 	logger.Trace().Msg("Successfully Parsed the config")
 	config := Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint:     endpoint,
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		ClientEndpoint: endpoint,
 	}
 
 	return config, nil
