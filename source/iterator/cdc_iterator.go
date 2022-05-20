@@ -33,13 +33,20 @@ const (
 	ActivityTypeIDChangeDataValue = 13
 )
 
+// custom Record type to handle CDC
+type Record struct {
+	id      int
+	data    map[string]interface{}
+	deleted bool
+}
+
 type CDCIterator struct {
-	client       *marketoclient.Client
-	buffer       chan Record
-	ticker       *time.Ticker
-	fields       []string
-	tomb         *tomb.Tomb
-	lastModified time.Time
+	client       *marketoclient.Client // marketo client
+	fields       []string              // fields to fetch from marketo
+	buffer       chan Record           // buffer to store latest leads
+	ticker       *time.Ticker          // ticker to poll marketo
+	tomb         *tomb.Tomb            // tomb to handle errors in goRoutines
+	lastModified time.Time             // time to start polling from
 }
 
 func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPeriod time.Duration, fields []string, lastModifiedTime time.Time) (*CDCIterator, error) {
@@ -57,6 +64,7 @@ func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPe
 	return iterator, nil
 }
 
+// poll is the main goRoutine that polls marketo for new leads
 func (c *CDCIterator) poll(ctx context.Context) error {
 	defer close(c.buffer)
 	for {
@@ -72,12 +80,14 @@ func (c *CDCIterator) poll(ctx context.Context) error {
 	}
 }
 
+// returns true if there are more records to be read from the iterator's buffer, otherwise returns false.
 func (c *CDCIterator) HasNext(ctx context.Context) bool {
 	logger := sdk.Logger(ctx).With().Str("Method", "Has Next").Logger()
 	logger.Trace().Msg("Checking iterator has next record...")
 	return len(c.buffer) > 0 || !c.tomb.Alive() // if tomb is dead we return true so caller will fetch error with Next
 }
 
+// returns Next record from the iterator's buffer, otherwise returns error.
 func (c *CDCIterator) Next(ctx context.Context) (sdk.Record, error) {
 	select {
 	case r := <-c.buffer:
@@ -90,11 +100,12 @@ func (c *CDCIterator) Next(ctx context.Context) (sdk.Record, error) {
 }
 
 func (c *CDCIterator) Stop() {
-	// stop the two goRoutines
+	// stop the goRoutines
 	c.ticker.Stop()
 	c.tomb.Kill(errors.New("cdc iterator is stopped"))
 }
 
+// returns record in the format of sdk.Record
 func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 	key := strconv.Itoa(r.id)
 	if r.deleted {
@@ -148,9 +159,10 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 	return rec, nil
 }
 
+// fetches latest leads from marketo and stores them in the buffer.
 func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
-	logger := sdk.Logger(ctx).With().Str("Method", "getLatestLeads").Logger()
-	logger.Trace().Msg("Starting the getLatestLeads")
+	logger := sdk.Logger(ctx).With().Str("Method", "flushLatestLeads").Logger()
+	logger.Trace().Msg("Starting the flushLatestLeads")
 	token, err := c.client.GetNextPageToken(c.lastModified)
 	c.lastModified = time.Now().UTC()
 	if err != nil {
@@ -194,16 +206,10 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 			}
 		}
 	}
-
 	return nil
 }
 
-type Record struct {
-	id      int
-	data    map[string]interface{}
-	deleted bool
-}
-
+// returns list of deleted leads ids.
 func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]int, error) {
 	response, err := c.client.GetDeletedLeads(token)
 	if err != nil {
@@ -225,6 +231,7 @@ func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]i
 	return leadIds, nil
 }
 
+// returns list of changed leads ids.
 func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, error) {
 	var leadIds = make(map[int]struct{}) // using map to avoid duplicates
 	moreResult := true

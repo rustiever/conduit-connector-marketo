@@ -24,11 +24,11 @@ import (
 
 const (
 	// ID: Marketo client ID
-	ClientID = "ClientID"
+	ClientID = "clientID"
 	// Secret: Marketo client secret
-	ClientSecret = "ClientSecret"
+	ClientSecret = "clientSecret"
 	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
-	ClientEndpoint = "ClientEndpoint"
+	ClientEndpoint = "clientEndpoint"
 )
 
 var (

@@ -27,7 +27,7 @@ import (
 	"github.com/jpillora/backoff"
 )
 
-// constants for Leads endpoint
+// actionTypes for createOrUpdate API endpoint
 const (
 	CreateOnly = "createOnly"
 	UpdateOnly = "updateOnly"
@@ -39,10 +39,12 @@ var (
 	ErrCannotCancel = errors.New("cannot cancel export, since it is already in completed state")
 )
 
+// custom wrapper client for minimarketo client
 type Client struct {
 	minimarketo.Client
 }
 
+// returns new marketo client with new token.
 func NewClient(config minimarketo.ClientConfig) (Client, error) {
 	client, err := minimarketo.NewClient(config)
 	if err != nil {
@@ -51,6 +53,8 @@ func NewClient(config minimarketo.ClientConfig) (Client, error) {
 	return Client{client}, nil
 }
 
+// creates New exportLeads job for given time range with requested fields. Maximum time range will be 31 days.
+// return export id and error.
 func (c Client) CreateExportLeads(fields []string, startDate string, endDate string) (string, error) {
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"filter": map[string]interface{}{
@@ -89,13 +93,13 @@ type CreateExportResult struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// enqueues export job.
 func (c Client) EnqueueExportLeads(exportID string) (string, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/enqueue.json", exportID)
 	response, err := c.Post(path, nil)
 	if err != nil {
 		return "", err
 	}
-
 	if !response.Success {
 		if response.Errors[0].Code == "1029" {
 			return "", ErrEnqueueLimit
@@ -105,6 +109,7 @@ func (c Client) EnqueueExportLeads(exportID string) (string, error) {
 	return exportID, nil
 }
 
+// returns current status of export job with error.
 func (c Client) StatusOfExportLeads(exportID string) (StatusOfExportResult, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/status.json", exportID)
 	response, err := c.Get(path)
@@ -137,6 +142,7 @@ type StatusOfExportResult struct {
 	FileChecksum    string    `json:"fileChecksum"`
 }
 
+// cancels export job.
 func (c Client) CancelExportLeads(exportID string) error {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/cancel.json", exportID)
 	response, err := c.Post(path, nil)
@@ -152,18 +158,17 @@ func (c Client) CancelExportLeads(exportID string) error {
 	return nil
 }
 
+// returns export job result in CSV format.
 func (c Client) FileExportLeads(ctx context.Context, endpoint string, exportID string) (*[]byte, error) {
 	path := fmt.Sprintf("/bulk/v1/leads/export/%s/file.json", exportID)
-
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint+path, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-
 	req.Header.Set("Authorization", "Bearer"+c.GetAuthToken())
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get response: %v", err)
 	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
@@ -173,6 +178,7 @@ func (c Client) FileExportLeads(ctx context.Context, endpoint string, exportID s
 	return &body, nil
 }
 
+// returns token for marketo rest api.
 func (c Client) GetAuthToken() string {
 	if c.GetTokenInfo().Expires.Before(time.Now().UTC()) {
 		_, _ = c.RefreshToken()
@@ -180,6 +186,7 @@ func (c Client) GetAuthToken() string {
 	return c.GetTokenInfo().Token
 }
 
+// returns all folders from marketo.
 func (c Client) GetAllFolders(maxDepth int) ([]FolderResult, error) {
 	var folderResult []FolderResult
 	path := fmt.Sprintf("/rest/asset/v1/folders.json?maxDepth=%v", maxDepth)
@@ -206,6 +213,7 @@ type FolderResult struct {
 	} `json:"folderId"`
 }
 
+// returnss nextPageToken from marketo rest api.
 func (c Client) GetNextPageToken(sinceTime time.Time) (string, error) {
 	formattedTime := sinceTime.UTC().Format(time.RFC3339)
 	path := fmt.Sprintf("/rest/v1/activities/pagingtoken.json?sinceDatetime=%s", formattedTime)
@@ -219,6 +227,7 @@ func (c Client) GetNextPageToken(sinceTime time.Time) (string, error) {
 	return response.NextPageToken, nil
 }
 
+// returns updated leads from marketo rest api.
 func (c Client) GetLeadChanges(nextPageToken string, fields []string) (*minimarketo.Response, error) {
 	path := fmt.Sprintf("/rest/v1/activities/leadchanges.json?nextPageToken=%s&fields=%s", nextPageToken, strings.Join(fields, ","))
 	response, err := c.Get(path)
@@ -231,6 +240,7 @@ func (c Client) GetLeadChanges(nextPageToken string, fields []string) (*minimark
 	return response, nil
 }
 
+// returns deleted leads from marketo rest api.
 func (c Client) GetDeletedLeads(nextPageToken string) (*json.RawMessage, error) {
 	path := fmt.Sprintf("/rest/v1/activities/deletedleads.json?nextPageToken=%s", nextPageToken)
 	response, err := c.Get(path)
@@ -243,6 +253,7 @@ func (c Client) GetDeletedLeads(nextPageToken string) (*json.RawMessage, error) 
 	return &response.Result, nil
 }
 
+// returns Lead record from marketo rest api.
 func (c Client) GetLeadByID(id int, fields []string) (*json.RawMessage, error) {
 	path := fmt.Sprintf("/rest/v1/lead/%d.json?fields=%s", id, strings.Join(fields, ","))
 	response, err := c.Get(path)
@@ -252,10 +263,10 @@ func (c Client) GetLeadByID(id int, fields []string) (*json.RawMessage, error) {
 	if !response.Success {
 		return nil, fmt.Errorf("%+v", response.Errors)
 	}
-
 	return &response.Result, nil
 }
 
+// creates map from given keys and values.
 func GetDataMap(keys []string, values []string) map[string]interface{} {
 	dataMap := make(map[string]interface{})
 	for i, key := range keys {
@@ -296,6 +307,7 @@ func WithRetry(r RetryFunc) error {
 
 // methods for tests
 
+// deletes leads be ID from marketo rest api.
 func (c Client) DeleteLeadsByIDs(ids []string) error {
 	path := fmt.Sprintf("/rest/v1/leads/delete.json?id=%s", strings.Join(ids, ","))
 	response, err := c.Post(path, nil)
@@ -308,6 +320,7 @@ func (c Client) DeleteLeadsByIDs(ids []string) error {
 	return nil
 }
 
+// creates or updates leads in marketo rest api.
 func (c Client) CreateOrUpdateLeads(actionType string, leads []map[string]interface{}) error {
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"action": actionType,

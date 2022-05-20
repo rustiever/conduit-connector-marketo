@@ -40,36 +40,35 @@ var (
 	InitialDate time.Time // holds the initial date of the snapshot
 )
 
-// to iterate through the snapshots for specified configs
+// to handle snapshot iterator
 type SnapshotIterator struct {
-	client        *marketoclient.Client
-	fields        []string
-	endpoint      string
-	exportID      string
-	iteratorCount int
-	errChan       chan error
-	csvReader     chan *csv.Reader
-	buffer        chan []string
-	flushingDone  chan struct{}
-	flushDone     bool
-	lastMaxModied time.Time
+	client          *marketoclient.Client
+	fields          []string         // holds the fields to be returned from the API
+	endpoint        string           // holds the endpoint of the API
+	exportID        string           // holds the current processin exportId
+	iteratorCount   int              // holds the number of snapshots to be created
+	errChan         chan error       // used to send errors
+	csvReader       chan *csv.Reader // holds bulk data returned from the API in CSV format
+	buffer          chan []string    // holds the data to be flushed to the conduit
+	flushingDone    chan struct{}    // used to signal that the flush goroutine has finished
+	flushDone       bool             // used as flag to indicate HasNext()
+	lastMaxModified time.Time        // holds the last maxModified date of the snapshot
 }
 
 // returns NewSnapshotIterator with supplied parameters, also initiates the pull and flush goroutines.
 func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, client marketoclient.Client, p position.Position) (*SnapshotIterator, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "NewSnapshotIterator").Logger()
 	logger.Trace().Msg("Starting the NewSnapshotIterator")
-
 	var err error
 	s := &SnapshotIterator{
-		endpoint:      endpoint,
-		client:        &client,
-		fields:        fields,
-		errChan:       make(chan error),
-		buffer:        make(chan []string, 100),
-		flushingDone:  make(chan struct{}),
-		flushDone:     false,
-		lastMaxModied: time.Time{},
+		endpoint:        endpoint,
+		client:          &client,
+		fields:          fields,
+		errChan:         make(chan error),
+		buffer:          make(chan []string, 100),
+		flushingDone:    make(chan struct{}),
+		flushDone:       false,
+		lastMaxModified: time.Time{},
 	}
 	eg, ctx := errgroup.WithContext(ctx)
 	if InitialDate.IsZero() {
@@ -100,10 +99,14 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 	return s, nil
 }
 
+// returns true if there are more records to be read from the iterator's buffer, otherwise returns false.
 func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
 	select {
 	case <-ctx.Done():
-		s.stop(ctx)
+		err2 := s.stop(ctx)
+		if err2 != nil {
+			sdk.Logger(ctx).Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
+		}
 		sdk.Logger(ctx).Info().Msg("Stopping the SnapshotIterator..." + ctx.Err().Error())
 		return false
 	case <-s.flushingDone:
@@ -112,9 +115,8 @@ func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
 	}
 	if s.flushDone && len(s.buffer) == 0 {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 // returns Next record from the iterator's buffer, otherwise returns error.
@@ -124,7 +126,10 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 
 	select {
 	case <-ctx.Done():
-		s.stop(ctx)
+		err2 := s.stop(ctx)
+		if err2 != nil {
+			logger.Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
+		}
 		return sdk.Record{}, ctx.Err()
 	case err1 := <-s.errChan:
 		logger.Error().Err(err1).Msg("Error while pulling from Marketo or flushing to buffer")
@@ -298,8 +303,8 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 		logger.Err(err).Msg("Error while parsing updatedAt")
 		return sdk.Record{}, fmt.Errorf("error parsing updatedAt %w", err)
 	}
-	if updatedAt.After(s.lastMaxModied) {
-		s.lastMaxModied = updatedAt
+	if updatedAt.After(s.lastMaxModified) {
+		s.lastMaxModified = updatedAt
 	}
 	position := position.Position{
 		Key:       (dataMap["id"].(string)),
@@ -344,7 +349,7 @@ func (s *SnapshotIterator) getLastProcessedDate(ctx context.Context, p position.
 	return date, nil
 }
 
-// return least date from marketo.
+// returns least date of all leads.
 func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclient.Client) (time.Time, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "GetOldestDateFromMarketo").Logger()
 	logger.Trace().Msg("Starting the GetOldestDateFromMarketo")

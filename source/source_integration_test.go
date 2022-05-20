@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -32,20 +33,8 @@ import (
 	"github.com/rustiever/conduit-connector-marketo/source/position"
 )
 
-// const (
-// 	ClinetID       = ""
-// 	ClientSecret   = ""
-// 	ClientEndpoint = ""
-// )
-
-const (
-	ClinetID       = "1de3017c-fe42-4f47-8034-798678c959a9"
-	ClientSecret   = "ZZZv0Mev29vNm5vIyMwTa43lioVoBT7N"
-	ClientEndpoint = "https://791-WQW-345.mktorest.com"
-)
-
 var (
-	fields = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"}
+	fields = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
 )
 
 func TestSource_SuccessfullSnapshot(t *testing.T) {
@@ -75,7 +64,7 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := waitForRecord(ctx, src, t)
+		rec := nextRecord(ctx, src, t)
 		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
@@ -120,7 +109,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := waitForRecord(ctx, src, t)
+		rec := nextRecord(ctx, src, t)
 		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
@@ -179,7 +168,7 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, lead := range testLeads {
-		rec := waitForRecord(ctx, src, t)
+		rec := nextRecord(ctx, src, t)
 		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
@@ -243,7 +232,7 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = waitForRecord(ctx, src, t)
+	rec = nextRecord(ctx, src, t)
 	var record map[string]interface{}
 	err = json.Unmarshal(rec.Payload.Bytes(), &record)
 	if err != nil {
@@ -282,7 +271,7 @@ func TestCDC_Delete(t *testing.T) {
 	}
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = waitForRecord(ctx, src, t)
+		rec = nextRecord(ctx, src, t)
 		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
@@ -294,18 +283,18 @@ func TestCDC_Delete(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	leadId := record["id"].(string)
-	err = client.DeleteLeadsByIDs([]string{leadId})
+	leadID := record["id"].(string)
+	err = client.DeleteLeadsByIDs([]string{leadID})
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	rec = waitForRecord(ctx, src, t)
+	rec = nextRecord(ctx, src, t)
 	err = json.Unmarshal(rec.Key.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	if record["id"].(string) != leadId {
-		t.Errorf("expected %v, got %v", leadId, record["id"])
+	if record["id"].(string) != leadID {
+		t.Errorf("expected %v, got %v", leadID, record["id"])
 	}
 }
 
@@ -334,7 +323,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	})
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = waitForRecord(ctx, src, t)
+		rec = nextRecord(ctx, src, t)
 		assert(t, &rec, lead)
 	}
 	lastPosition := rec.Position
@@ -351,7 +340,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = waitForRecord(ctx, src1, t)
+	rec = nextRecord(ctx, src1, t)
 	assert(t, &rec, testLeads[0])
 }
 
@@ -408,20 +397,28 @@ func TestConfigureSource_FailsWhenConfigEmpty(t *testing.T) {
 		t.Errorf("expected error to be about missing config, got %v", err)
 	}
 }
+
+func Test(t *testing.T) {
+	os.Setenv("MARKETO_CLIENT_ID", "1de3017c-fe42-4f47-8034-798678c959a9")
+	fmt.Println(os.Getenv("MARKETO_CLIENT_ID"))
+}
+
+// returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}
-	cfg[config.ClientID] = ClinetID
-	cfg[config.ClientSecret] = ClientSecret
-	cfg[config.ClientEndpoint] = ClientEndpoint
+	cfg[config.ClientID] = os.Getenv("MARKETO_CLIENT_ID")
+	cfg[config.ClientSecret] = os.Getenv("MARKETO_CLIENT_SECRET")
+	cfg[config.ClientEndpoint] = os.Getenv("MARKETO_CLIENT_ENDPOINT")
 	cfg[sourceConfig.ConfigKeyPollingPeriod] = "10s"
 	return cfg
 }
 
+// returns new client.
 func getClient() (marketoclient.Client, error) {
 	client, err := marketoclient.NewClient(minimarketo.ClientConfig{
-		ID:       ClinetID,
-		Secret:   ClientSecret,
-		Endpoint: ClientEndpoint,
+		ID:       os.Getenv("MARKETO_CLIENT_ID"),
+		Secret:   os.Getenv("MARKETO_CLIENT_SECRET"),
+		Endpoint: os.Getenv("MARKETO_CLIENT_ENDPOINT"),
 	})
 	if err != nil {
 		return marketoclient.Client{}, err
@@ -429,23 +426,25 @@ func getClient() (marketoclient.Client, error) {
 	return client, nil
 }
 
-func assert(t *testing.T, rec *sdk.Record, expRec map[string]interface{}) {
+// asserts actual record against expected lead.
+func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 	var record map[string]interface{}
-	err := json.Unmarshal(rec.Payload.Bytes(), &record)
+	err := json.Unmarshal(actual.Payload.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	if expRec["firstName"] != record["firstName"] {
-		t.Errorf("expected firstName %v, got %v", expRec["firstName"], record["firstName"])
+	if expected["firstName"] != record["firstName"] {
+		t.Errorf("expected firstName %v, got %v", expected["firstName"], record["firstName"])
 	}
-	if expRec["lastName"] != record["lastName"] {
-		t.Errorf("expected lastName %v, got %v", expRec["lastName"], record["lastName"])
+	if expected["lastName"] != record["lastName"] {
+		t.Errorf("expected lastName %v, got %v", expected["lastName"], record["lastName"])
 	}
-	if expRec["email"] != record["email"] {
-		t.Errorf("expected email %v, got %v", expRec["email"], record["email"])
+	if expected["email"] != record["email"] {
+		t.Errorf("expected email %v, got %v", expected["email"], record["email"])
 	}
 }
 
+// generates a n number of leads and adds them to the database, also returns leads.
 func AddLeads(client marketoclient.Client, count int) ([]map[string]interface{}, error) {
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
@@ -465,6 +464,7 @@ func AddLeads(client marketoclient.Client, count int) ([]map[string]interface{},
 	return leads, nil
 }
 
+// updates the leads for given LeadID
 func UpdateLeads(client marketoclient.Client, emailID string) (map[string]interface{}, error) {
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
@@ -479,7 +479,8 @@ func UpdateLeads(client marketoclient.Client, emailID string) (map[string]interf
 	return leads, nil
 }
 
-func waitForRecord(ctx context.Context, src *Source, t *testing.T) (rec sdk.Record) {
+// gets next record from the source
+func nextRecord(ctx context.Context, src *Source, t *testing.T) (rec sdk.Record) {
 	var err error
 	for {
 		rec, err = src.Read(ctx)
@@ -494,6 +495,7 @@ func waitForRecord(ctx context.Context, src *Source, t *testing.T) (rec sdk.Reco
 	return
 }
 
+// deletes all leads from marketo API
 func cleanUp(client marketoclient.Client, sinceTime time.Time) error {
 	token, err := client.GetNextPageToken(sinceTime)
 	if err != nil {
@@ -525,6 +527,7 @@ func cleanUp(client marketoclient.Client, sinceTime time.Time) error {
 	return nil
 }
 
+// configures the source with the given configs and establishes a connection to Marketo
 func configAndOpen(ctx context.Context, s *Source, pos sdk.Position) error {
 	err := s.Configure(ctx, getConfigs())
 	if err != nil {

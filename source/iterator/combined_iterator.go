@@ -138,7 +138,7 @@ func (c *CombinedIterator) Stop() {
 }
 
 func (c *CombinedIterator) switchToCDCIterator(ctx context.Context) error {
-	lastModifiedTime := c.snapshotIterator.lastMaxModied
+	lastModifiedTime := c.snapshotIterator.lastMaxModified
 	if lastModifiedTime.IsZero() {
 		lastModifiedTime = time.Now().UTC()
 	}

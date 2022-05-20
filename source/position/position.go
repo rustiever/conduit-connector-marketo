@@ -22,17 +22,17 @@ import (
 )
 
 const (
-	TypeSnapshot Type = iota
+	TypeSnapshot IteratorType = iota
 	TypeCDC
 )
 
-type Type int
+type IteratorType int
 
 type Position struct {
 	Key       string
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Type      Type
+	Type      IteratorType
 }
 
 func (p Position) ToRecordPosition() (sdk.Position, error) {
