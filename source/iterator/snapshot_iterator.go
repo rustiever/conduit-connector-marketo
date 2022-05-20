@@ -25,7 +25,6 @@ import (
 	"time"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	"github.com/jpillora/backoff"
 	marketoclient "github.com/rustiever/conduit-connector-marketo/marketo-client"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
 	"golang.org/x/sync/errgroup"
@@ -37,17 +36,22 @@ const (
 	MaximumDaysGap = 744 // 31 days in Hours
 )
 
+var (
+	InitialDate time.Time // holds the initial date of the snapshot
+)
+
 // to iterate through the snapshots for specified configs
 type SnapshotIterator struct {
-	endpoint      string
-	fields        []string
 	client        *marketoclient.Client
+	fields        []string
+	endpoint      string
 	exportID      string
-	initialDate   time.Time
 	iteratorCount int
 	errChan       chan error
 	csvReader     chan *csv.Reader
 	buffer        chan []string
+	flushingDone  chan struct{}
+	flushDone     bool
 	lastMaxModied time.Time
 }
 
@@ -62,29 +66,29 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 		client:        &client,
 		fields:        fields,
 		errChan:       make(chan error),
+		buffer:        make(chan []string, 100),
+		flushingDone:  make(chan struct{}),
+		flushDone:     false,
 		lastMaxModied: time.Time{},
 	}
 	eg, ctx := errgroup.WithContext(ctx)
-	s.initialDate, err = s.getLastProcessedDate(ctx, p)
+	if InitialDate.IsZero() {
+		InitialDate, err = s.getLastProcessedDate(ctx, p)
+	}
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting initial date")
 		return nil, err
 	}
-
-	startDateDuration := time.Since(s.initialDate)
+	startDateDuration := time.Since(InitialDate)
 	s.iteratorCount = int(startDateDuration.Hours()/MaximumDaysGap) + 1
-	logger.Info().Msgf("Preparing %d number of snapshots", s.iteratorCount)
+	logger.Info().Msgf("Creating %d snapshots", s.iteratorCount)
 	s.csvReader = make(chan *csv.Reader, s.iteratorCount)
-	s.buffer = make(chan []string, 10)
-
 	eg.Go(func() error {
 		return s.pull(ctx)
 	})
-
 	eg.Go(func() error {
 		return s.flush(ctx)
 	})
-
 	go func() {
 		err := eg.Wait()
 		logger.Trace().Msg("Errgroup wait finished")
@@ -93,27 +97,35 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 			s.errChan <- err
 		}
 	}()
-
 	return s, nil
 }
 
 func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
-	if s.csvReader == nil && len(s.buffer) == 0 {
+	select {
+	case <-ctx.Done():
+		s.stop(ctx)
+		sdk.Logger(ctx).Info().Msg("Stopping the SnapshotIterator..." + ctx.Err().Error())
 		return false
+	case <-s.flushingDone:
+		s.flushDone = true
+	default:
 	}
-	return true
+	if s.flushDone && len(s.buffer) == 0 {
+		return false
+	} else {
+		return true
+	}
 }
 
-// retunrs Next record from the iterator's buffer, otherwise returns error.
-// Also returns ErrDone if the iterator is done.
+// returns Next record from the iterator's buffer, otherwise returns error.
 func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "Next").Logger()
 	logger.Trace().Msg("Starting the Next method")
 
 	select {
-	// case <-ctx.Done():
-	// 	s.Stop(ctx)
-	// 	return sdk.Record{}, ctx.Err()
+	case <-ctx.Done():
+		s.stop(ctx)
+		return sdk.Record{}, ctx.Err()
 	case err1 := <-s.errChan:
 		logger.Error().Err(err1).Msg("Error while pulling from Marketo or flushing to buffer")
 		logger.Info().Msg("Stopping the SnapshotIterator...")
@@ -122,7 +134,11 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 			logger.Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
 		}
 		return sdk.Record{}, fmt.Errorf("%s and %s", err1.Error(), err2.Error())
-	case data := <-s.buffer:
+	case data, ok := <-s.buffer:
+		if !ok {
+			logger.Info().Msg("Buffer is empty")
+			return sdk.Record{}, sdk.ErrBackoffRetry
+		}
 		record, err := s.prepareRecord(ctx, data)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while preparing record")
@@ -155,13 +171,9 @@ func (s *SnapshotIterator) stop(ctx context.Context) error {
 func (s *SnapshotIterator) pull(ctx context.Context) error {
 	logger := sdk.Logger(ctx).With().Str("Method", "pull").Logger()
 	logger.Trace().Msg("Starting the pull")
-
-	defer func() {
-		close(s.csvReader)
-		s.csvReader = nil
-	}()
+	defer close(s.csvReader)
 	var startDate, endDate time.Time
-	date := s.initialDate
+	date := InitialDate
 	for i := 0; i < s.iteratorCount; i++ {
 		startDate = date
 		endDate = date.Add(time.Hour * time.Duration(MaximumDaysGap)).Add(-1 * time.Second)
@@ -183,7 +195,10 @@ func (s *SnapshotIterator) pull(ctx context.Context) error {
 func (s *SnapshotIterator) flush(ctx context.Context) error {
 	logger := sdk.Logger(ctx).With().Str("Method", "flush").Logger()
 	logger.Trace().Msg("Starting the flush method")
-	defer close(s.buffer)
+	defer func() {
+		close(s.buffer)
+		s.flushingDone <- struct{}{}
+	}()
 	for reader := range s.csvReader {
 		for {
 			rec, err := reader.Read()
@@ -211,7 +226,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 		logger.Error().Err(err).Msg("Error while creating export")
 		return err
 	}
-	err = s.withRetry(func() (bool, error) {
+	err = marketoclient.WithRetry(func() (bool, error) {
 		_, err := s.client.EnqueueExportLeads(s.exportID)
 		if errors.Is(err, marketoclient.ErrEnqueueLimit) {
 			logger.Trace().Msg("Enqueue limit reached")
@@ -228,7 +243,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 		return err
 	}
 
-	err = s.withRetry(func() (bool, error) {
+	err = marketoclient.WithRetry(func() (bool, error) {
 		statusResult, err := s.client.StatusOfExportLeads(s.exportID)
 		if err != nil {
 			logger.Err(err).Msg("Error while getting status of export")
@@ -265,36 +280,6 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 	logger.Trace().Msg("Sending csv reader to channel")
 	s.csvReader <- csvReader
 
-	return nil
-}
-
-// retries the function until it returns false or an error
-type RetryFunc func() (bool, error)
-
-// retries supplied function using retry backoff strategy.
-func (s *SnapshotIterator) withRetry(r RetryFunc) error {
-	b := &backoff.Backoff{
-		Max:    2 * time.Minute,
-		Min:    10 * time.Second,
-		Factor: 1.1,
-		// Jitter: true,
-	}
-	for {
-		retry, err := r()
-		if err != nil {
-			return err
-		}
-		if retry {
-			d := b.Duration()
-			time.Sleep(b.Duration())
-			if d == b.Max {
-				b.Reset()
-			}
-			continue
-		} else if !retry {
-			break
-		}
-	}
 	return nil
 }
 
@@ -371,7 +356,7 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 	oldestTime := time.Now().UTC()
 	for _, v := range folderResult {
-		date, _, found := cut(v.CreatedAt, "+")
+		date, _, found := strings.Cut(v.CreatedAt, "+")
 		if !found {
 			logger.Error().Msgf("Error while parsing the date %s", v.CreatedAt)
 			return time.Time{}, fmt.Errorf("error while parsing the date %s", v.CreatedAt)
@@ -387,15 +372,4 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 
 	return oldestTime.UTC(), nil
-}
-
-// Cut cuts s around the first instance of sep,
-// returning the text before and after sep.
-// The found result reports whether sep appears in s.
-// If sep does not appear in s, cut returns s, "", false.
-func cut(s, sep string) (before, after string, found bool) {
-	if i := strings.Index(s, sep); i >= 0 {
-		return s[:i], s[i+len(sep):], true
-	}
-	return s, "", false
 }

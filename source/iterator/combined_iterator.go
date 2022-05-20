@@ -81,7 +81,17 @@ func NewCombinedIterator(ctx context.Context, endpoint string, pollingPeriod tim
 func (c *CombinedIterator) HasNext(ctx context.Context) bool {
 	switch {
 	case c.snapshotIterator != nil:
-		return c.snapshotIterator.HasNext(ctx)
+		// case of empty database or end of database
+		if !c.snapshotIterator.HasNext(ctx) {
+			sdk.Logger(ctx).Info().Msg("Switching to CDC iterator...")
+			err := c.switchToCDCIterator(ctx)
+			if err != nil {
+				sdk.Logger(ctx).Err(err).Msg("Error while switching to CDC iterator")
+				return false
+			}
+			return false
+		}
+		return true
 	case c.cdcIterator != nil:
 		return c.cdcIterator.HasNext(ctx)
 	default:
@@ -100,7 +110,7 @@ func (c *CombinedIterator) Next(ctx context.Context) (sdk.Record, error) {
 			return sdk.Record{}, err
 		}
 		if !c.snapshotIterator.HasNext(ctx) {
-			logger.Debug().Msg("Switching to CDC iterator")
+			logger.Info().Msg("Switching to CDC iterator...")
 			c.position = record.Position
 			err := c.switchToCDCIterator(ctx)
 			if err != nil {
@@ -130,7 +140,7 @@ func (c *CombinedIterator) Stop() {
 func (c *CombinedIterator) switchToCDCIterator(ctx context.Context) error {
 	lastModifiedTime := c.snapshotIterator.lastMaxModied
 	if lastModifiedTime.IsZero() {
-		lastModifiedTime = time.Now()
+		lastModifiedTime = time.Now().UTC()
 	}
 	var err error
 	c.cdcIterator, err = NewCDCIterator(ctx, &c.client, c.pollingPeriod, c.fields, lastModifiedTime)

@@ -4,6 +4,8 @@ go 1.17
 
 require github.com/conduitio/conduit-connector-sdk v0.2.0
 
+require github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e // indirect
+
 require (
 	github.com/SpeakData/minimarketo v0.0.0-20170821092521-29339e452f44
 	github.com/conduitio/conduit-connector-protocol v0.2.0 // indirect
