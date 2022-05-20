@@ -145,7 +145,6 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 			"id": key,
 		},
 	}
-
 	return rec, nil
 }
 
@@ -168,7 +167,6 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		logger.Error().Err(err).Msg("Error while getting the deleted leads")
 		return err
 	}
-
 	for _, id := range deletedLeadIds {
 		c.buffer <- Record{
 			id:      id,
@@ -176,7 +174,6 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 			data:    nil,
 		}
 	}
-
 	for _, id := range changedLeadIds {
 		res, err := c.client.GetLeadByID(id, c.fields)
 		if err != nil {

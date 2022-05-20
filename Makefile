@@ -4,7 +4,7 @@ build:
 	go build -o marketo cmd/marketo/main.go
 
 test:
-	go test $(GOTEST_FLAGS) -v -race ./...
+	go test $(GOTEST_FLAGS) -p 1 -timeout 30m -v -race ./...
 
 test-integration:
 	# run required docker containers, execute integration tests, stop containers after tests

@@ -24,6 +24,13 @@ import (
 	"time"
 
 	"github.com/SpeakData/minimarketo"
+	"github.com/jpillora/backoff"
+)
+
+// constants for Leads endpoint
+const (
+	CreateOnly = "createOnly"
+	UpdateOnly = "updateOnly"
 )
 
 var (
@@ -257,4 +264,65 @@ func GetDataMap(keys []string, values []string) map[string]interface{} {
 	return dataMap
 }
 
+// retries the function until it returns false or an error
+type RetryFunc func() (bool, error)
+
+// retries supplied function using retry backoff strategy.
+func WithRetry(r RetryFunc) error {
+	b := &backoff.Backoff{
+		Max:    2 * time.Minute,
+		Min:    10 * time.Second,
+		Factor: 1.1,
+		// Jitter: true,
+	}
+	for {
+		retry, err := r()
+		if err != nil {
+			return err
+		}
+		if retry {
+			d := b.Duration()
+			time.Sleep(b.Duration())
+			if d == b.Max {
+				b.Reset()
+			}
+			continue
+		} else if !retry {
+			break
+		}
+	}
+	return nil
+}
+
 // methods for tests
+
+func (c Client) DeleteLeadsByIDs(ids []string) error {
+	path := fmt.Sprintf("/rest/v1/leads/delete.json?id=%s", strings.Join(ids, ","))
+	response, err := c.Post(path, nil)
+	if err != nil {
+		return err
+	}
+	if !response.Success {
+		return fmt.Errorf("%+v", response.Errors)
+	}
+	return nil
+}
+
+func (c Client) CreateOrUpdateLeads(actionType string, leads []map[string]interface{}) error {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"action": actionType,
+		"input":  leads,
+	})
+	if err != nil {
+		return err
+	}
+	path := "/rest/v1/leads.json"
+	response, err := c.Post(path, reqBody)
+	if err != nil {
+		return err
+	}
+	if !response.Success {
+		return fmt.Errorf("%+v", response.Errors)
+	}
+	return nil
+}
