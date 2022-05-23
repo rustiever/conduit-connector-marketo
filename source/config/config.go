@@ -72,9 +72,9 @@ func ParseSourceConfig(ctx context.Context, cfg map[string]string) (SourceConfig
 
 	var fields []string
 	if cfg[ConfigKeyFields] == "" {
-		fields = getOrderedFields([]string{})
+		fields = []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
 	} else {
-		fields = getOrderedFields(strings.Split(cfg[ConfigKeyFields], ","))
+		fields = append([]string{"id", "createdAt", "updatedAt"}, strings.Split(cfg[ConfigKeyFields], ",")...)
 	}
 
 	logger.Trace().Msg("Start Parsing the Config")
@@ -83,19 +83,4 @@ func ParseSourceConfig(ctx context.Context, cfg map[string]string) (SourceConfig
 		PollingPeriod: pollingPeriod,
 		Fields:        fields,
 	}, nil
-}
-
-// returns default fields if no fields are specified and if some specfied prepends required fields
-func getOrderedFields(fields []string) []string {
-	if len(fields) == 0 {
-		return []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
-	}
-	var tempFields = []string{"id", "createdAt", "updatedAt"}
-	for _, field := range fields {
-		if field == "id" || field == "createdAt" || field == "updatedAt" {
-			continue
-		}
-		tempFields = append(tempFields, field)
-	}
-	return tempFields
 }

@@ -1,5 +1,5 @@
 # Conduit Connector for Adobe Marketo
-Marketo source connector for [Conduit](https://conduit.com).
+Marketo source connector for [Conduit](https://conduit.com) which pulls and syncs the `Leads(People)` object from [Marketo Engage](https://marketo.com).
 
 ### Configuration
 The config passed to `Configure` can contain the following fields.
@@ -10,6 +10,8 @@ The config passed to `Configure` can contain the following fields.
 |`clientEndpoint`|source|The Endpoint for Marketo Instance|true|NONE| https://\<instance\>.mktorest.com |
 |`pollingPeriod`|source|Polling time for CDC mode. Less than 10s is not recommended |false|`1m`| `10s`, `1m`, `5m`, `10m`, `30m`, `1h` |
 |`fields`|source|comma seperated fields to fetch from Marketo Leads|false|`id, createdAt, updatedAt, firstName, lastName, email`| `company, jobTitle, phone, personSource` etc... |
+
+>Note: By default **`id, createdAt, updatedAt`** is prepended to `fields` config. So no need to add that explictly. For eg: if you want to request `email, company, phone` fields, then it will be requested as **`id, createdAt, updatedAt, email, company, phone`**
 
 ## Source
 Marketo source connector connects to Marketo instance through the REST API with provided configuration, using `clientID` and `clientSecret`. Once connector is started `Configure` method is called to parse configurations and validate them. After that `Open` method is called to establish connection to Marketo instance with provided position. Once connection is established `Read` method is called which calls current iterator's `Next` method to fetch next record. `Teardown` is called when connector is stopped. 

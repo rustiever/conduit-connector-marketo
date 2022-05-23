@@ -40,9 +40,9 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Empty Polling period",
 			wantErr: false,
 			in: map[string]string{
-				"ClientID":       "client_id",
-				"ClientSecret":   "client_secret",
-				"ClientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"clientID":       "client_id",
+				"clientSecret":   "client_secret",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
 				"polling_period": "",
 			},
 			expectedCon: SourceConfig{
@@ -59,9 +59,9 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Polling period which is not parsed",
 			wantErr: true,
 			in: map[string]string{
-				"ClientID":       "client_id",
-				"ClientSecret":   "client_secret",
-				"ClientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"clientID":       "client_id",
+				"clientSecret":   "client_secret",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
 				"pollingPeriod":  "not parsed",
 			},
 			expectedCon: SourceConfig{},
@@ -70,12 +70,43 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Polling period which is negative",
 			wantErr: true,
 			in: map[string]string{
-				"ClientID":       "client_id",
-				"ClientSecret":   "client_secret",
-				"ClientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"clientID":       "client_id",
+				"clientSecret":   "client_secret",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
 				"pollingPeriod":  "-1m",
 			},
 			expectedCon: SourceConfig{},
+		},
+		{
+			name: "polling period which is zero",
+			in: map[string]string{
+				"clientID":       "client_id",
+				"clientSecret":   "client_secret",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"pollingPeriod":  "0m",
+			},
+			expectedCon: SourceConfig{},
+			wantErr:     true,
+		},
+		{
+			name:    "Empty Fields",
+			wantErr: false,
+			in: map[string]string{
+				"clientID":       "client_id",
+				"clientSecret":   "client_secret",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"pollingPeriod":  "1m",
+				"fields":         "",
+			},
+			expectedCon: SourceConfig{
+				Config: globalConfig.Config{
+					ClientID:       "client_id",
+					ClientSecret:   "client_secret",
+					ClientEndpoint: "https://xxx-xxx-xxx.mktorest.com",
+				},
+				PollingPeriod: time.Minute,
+				Fields:        []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
+			},
 		},
 	}
 
@@ -87,39 +118,6 @@ func TestParseGlobalConfig(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tt.expectedCon, actualCon) {
 				t.Errorf("Expected Config %v doesn't match with actual config %v ", tt.expectedCon, actualCon)
-			}
-		})
-	}
-}
-
-func TestGetOrderedFields(t *testing.T) {
-	var configTests = []struct {
-		name     string
-		input    []string
-		expected []string
-	}{
-		{
-			name:     "Nil Input",
-			input:    nil,
-			expected: []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
-		},
-		{
-			name:     "Empty Input",
-			input:    []string{},
-			expected: []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
-		},
-		{
-			name:     "With fields",
-			input:    []string{"email", "firstName"},
-			expected: []string{"id", "createdAt", "updatedAt", "email", "firstName"},
-		},
-	}
-
-	for _, tt := range configTests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := getOrderedFields(tt.input)
-			if !reflect.DeepEqual(tt.expected, actual) {
-				t.Errorf("Expected %v doesn't match with actual %v ", tt.expected, actual)
 			}
 		})
 	}
