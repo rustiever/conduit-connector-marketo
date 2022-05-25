@@ -1,5 +1,5 @@
 # Conduit Connector for Adobe Marketo
-Marketo source connector for [Conduit](https://conduit.com) which pulls and syncs the `Leads(People)` object from [Marketo Engage](https://marketo.com).
+Marketo source connector for [Conduit](https://conduit.com) which pulls and syncs the **`Leads(People)`** object from [Marketo Engage](https://marketo.com).
 
 ### Configuration
 The config passed to `Configure` can contain the following fields.
@@ -33,12 +33,6 @@ Once Snapshot iterator is completed, connector automatically switches to CDC ite
 From config `pollingPeriod` will be used to poll CDC events.
 
 ### Position Handling 
-type Position struct {
-	Key       string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Type      IteratorType
-}
 | Name | type | desc |
 | ---- | ---- | ---- |
 | Key | string| unique `id` for the record |
@@ -58,4 +52,3 @@ The Docker compose file at `test/docker-compose.yml` can be used to run the requ
 * Concurrency Limit:  Maximum of 10 concurrent API calls.
 * Rate Limit: API access per instance limited to 100 calls per 20 seconds.
 * Daily Quota: Subscriptions are allocated 50,000 API calls per day (which resets daily at 12:00AM CST).  You can increase your daily quota through your account manager.
-### Planned work

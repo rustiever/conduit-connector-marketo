@@ -34,7 +34,10 @@ import (
 )
 
 var (
-	fields = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
+	ClinetID       = os.Getenv("MARKETO_CLIENT_ID")
+	ClientSecret   = os.Getenv("MARKETO_CLIENT_SECRET")
+	ClientEndpoint = os.Getenv("MARKETO_CLIENT_ENDPOINT")
+	fields         = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
 )
 
 func TestSource_SuccessfullSnapshot(t *testing.T) {
@@ -311,7 +314,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := AddLeads(client, 1)
+	testLeads, err := AddLeads(client, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,17 +401,12 @@ func TestConfigureSource_FailsWhenConfigEmpty(t *testing.T) {
 	}
 }
 
-func Test(t *testing.T) {
-	os.Setenv("MARKETO_CLIENT_ID", "1de3017c-fe42-4f47-8034-798678c959a9")
-	fmt.Println(os.Getenv("MARKETO_CLIENT_ID"))
-}
-
 // returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}
-	cfg[config.ClientID] = os.Getenv("MARKETO_CLIENT_ID")
-	cfg[config.ClientSecret] = os.Getenv("MARKETO_CLIENT_SECRET")
-	cfg[config.ClientEndpoint] = os.Getenv("MARKETO_CLIENT_ENDPOINT")
+	cfg[config.ClientID] = ClinetID
+	cfg[config.ClientSecret] = ClientSecret
+	cfg[config.ClientEndpoint] = ClientEndpoint
 	cfg[sourceConfig.ConfigKeyPollingPeriod] = "10s"
 	return cfg
 }
@@ -416,9 +414,9 @@ func getConfigs() map[string]string {
 // returns new client.
 func getClient() (marketoclient.Client, error) {
 	client, err := marketoclient.NewClient(minimarketo.ClientConfig{
-		ID:       os.Getenv("MARKETO_CLIENT_ID"),
-		Secret:   os.Getenv("MARKETO_CLIENT_SECRET"),
-		Endpoint: os.Getenv("MARKETO_CLIENT_ENDPOINT"),
+		ID:       ClinetID,
+		Secret:   ClientSecret,
+		Endpoint: ClientEndpoint,
 	})
 	if err != nil {
 		return marketoclient.Client{}, err
