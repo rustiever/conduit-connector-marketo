@@ -28,6 +28,8 @@ import (
 	"gopkg.in/tomb.v2"
 )
 
+// ActivityTypeID to capture required CDC events.
+// For reference https://developers.marketo.com/blog/synchronizing-lead-data-changes-using-rest-api/
 const (
 	ActivityTypeIDNewLead         = 12
 	ActivityTypeIDChangeDataValue = 13
