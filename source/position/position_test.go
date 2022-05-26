@@ -16,6 +16,7 @@ package position
 
 import (
 	"testing"
+	"time"
 
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
@@ -48,16 +49,18 @@ func Test_ParseRecordPosition(t *testing.T) {
 		{
 			name:    "cdc type position",
 			wantErr: false,
-			in:      []byte("{\"key\":\"test\",\"timestamp\":\"0001-01-01T00:00:00Z\",\"type\":1}"),
+			in:      []byte("{\"key\":\"test\",\"createdAt\":\"0001-01-01T00:00:00Z\",\"updatedAt\":\"0001-01-01T00:00:00Z\",\"type\":1}"),
 			out: Position{
-				Key:  "test",
-				Type: TypeCDC,
+				Key:       "test",
+				Type:      TypeCDC,
+				UpdatedAt: time.Time{},
+				CreatedAt: time.Time{},
 			},
 		},
 		{
 			name:    "invalid timestamp returns error",
 			wantErr: true,
-			in:      []byte("s_key_invalid-timestamp_invalid-timestamp"),
+			in:      []byte("{\"key\":\"test\",\"createdAt\":\"001-01-01T0:00:00Z\",\"updatedAt\":\"0001-01-01T00:0:00Z\",\"type\":1}"),
 			out:     Position{},
 		},
 		{
@@ -70,7 +73,6 @@ func Test_ParseRecordPosition(t *testing.T) {
 	for _, tt := range positionTests {
 		t.Run(tt.name, func(t *testing.T) {
 			p, err := ParseRecordPosition(tt.in)
-			t.Log(p)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseRecordPosition error = %v , wantErr = %v", err, tt.wantErr)
 			} else if p != tt.out {

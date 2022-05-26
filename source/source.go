@@ -116,7 +116,6 @@ func (s *Source) Ack(ctx context.Context, pos sdk.Position) error {
 func (s *Source) TearDown(ctx context.Context) error {
 	if s.iterator != nil {
 		s.iterator.Stop()
-		s.iterator = nil
 	}
 	return nil
 }

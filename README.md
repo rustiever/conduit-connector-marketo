@@ -15,7 +15,6 @@ The config passed to `Configure` can contain the following fields.
 
 ## Source
 Marketo source connector connects to Marketo instance through the REST API with provided configuration, using `clientID` and `clientSecret`. Once connector is started `Configure` method is called to parse configurations and validate them. After that `Open` method is called to establish connection to Marketo instance with provided position. Once connection is established `Read` method is called which calls current iterator's `Next` method to fetch next record. `Teardown` is called when connector is stopped. 
-A source connector pulls data from given Marketo Instance and pushes it to downstream resources via Conduit.
 
 ### Snapshot Iterator
 Snapshot iterator is used first to extract bulk data from Marketo instance. [Bulk Lead Extract API](https://developers.marketo.com/rest-api/bulk-extract/bulk-lead-extract/) is used with `createdAt` filter which permits datetime ranges up to 31 days, so we will need to run multiple jobs and combine the results. In order to get started we need to find the oldest lead created in the instance. To know the date [querry all folders](https://developers.marketo.com/rest-api/assets/folders/#browse) with maxdepth of 1 which will give us a list of all the top-level folders in the instance. Then collecting `createdAt` dates, parse them, and find the oldest date. This method works because some default, top-level folders are created with the instance and no leads could be created before then. `fields` from config also requested along with `createdAt` filter. To find the available fields for your target instance using the [Describe Lead 2 endpoint](https://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Leads/describeUsingGET_6) which return an exhaustive list including both standard and custom fields.
@@ -48,7 +47,7 @@ Run `make test` to run all the unit tests. Run `make test-integration` to run th
 
 The Docker compose file at `test/docker-compose.yml` can be used to run the required resource locally.
 ### Known Issues & Limitations
-* In snapshot mode, the total amount of data that you can export from Marketo is limited to 500MB per day unless you have purchased a higher data limit. This 500MB limit resets daily at 12:00AM CST.
+* In snapshot mode, the total amount of data that you can export from Marketo is limited to 500MB per day unless you have purchased a higher data limit. This 500MB limit resets daily at 12:00AM CST. Once the limit is hit pipeline stops with error. In order to pull rest of the records you need to run the pipeline again next day. 
 * Concurrency Limit:  Maximum of 10 concurrent API calls.
 * Rate Limit: API access per instance limited to 100 calls per 20 seconds.
 * Daily Quota: Subscriptions are allocated 50,000 API calls per day (which resets daily at 12:00AM CST).  You can increase your daily quota through your account manager.

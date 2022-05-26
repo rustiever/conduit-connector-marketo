@@ -27,12 +27,6 @@ import (
 	"github.com/jpillora/backoff"
 )
 
-// actionTypes for createOrUpdate API endpoint
-const (
-	CreateOnly = "createOnly"
-	UpdateOnly = "updateOnly"
-)
-
 var (
 	ErrEnqueueLimit = errors.New("enqueue limit reached")
 	ErrZeroRecords  = errors.New("no records found")
@@ -301,41 +295,6 @@ func WithRetry(r RetryFunc) error {
 		} else if !retry {
 			break
 		}
-	}
-	return nil
-}
-
-// methods for tests
-
-// deletes leads be ID from marketo rest api.
-func (c Client) DeleteLeadsByIDs(ids []string) error {
-	path := fmt.Sprintf("/rest/v1/leads/delete.json?id=%s", strings.Join(ids, ","))
-	response, err := c.Post(path, nil)
-	if err != nil {
-		return err
-	}
-	if !response.Success {
-		return fmt.Errorf("%+v", response.Errors)
-	}
-	return nil
-}
-
-// creates or updates leads in marketo rest api.
-func (c Client) CreateOrUpdateLeads(actionType string, leads []map[string]interface{}) error {
-	reqBody, err := json.Marshal(map[string]interface{}{
-		"action": actionType,
-		"input":  leads,
-	})
-	if err != nil {
-		return err
-	}
-	path := "/rest/v1/leads.json"
-	response, err := c.Post(path, reqBody)
-	if err != nil {
-		return err
-	}
-	if !response.Success {
-		return fmt.Errorf("%+v", response.Errors)
 	}
 	return nil
 }
