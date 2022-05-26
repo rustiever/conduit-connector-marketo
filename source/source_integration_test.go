@@ -11,64 +11,53 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package source
+package source_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/SpeakData/minimarketo"
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	"github.com/goombaio/namegenerator"
 	"github.com/rustiever/conduit-connector-marketo/config"
-	marketoclient "github.com/rustiever/conduit-connector-marketo/marketo-client"
-	sourceConfig "github.com/rustiever/conduit-connector-marketo/source/config"
+	"github.com/rustiever/conduit-connector-marketo/source"
 	"github.com/rustiever/conduit-connector-marketo/source/iterator"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
-)
-
-var (
-	ClinetID       = os.Getenv("MARKETO_CLIENT_ID")
-	ClientSecret   = os.Getenv("MARKETO_CLIENT_SECRET")
-	ClientEndpoint = os.Getenv("MARKETO_CLIENT_ENDPOINT")
-	fields         = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
+	"github.com/rustiever/conduit-connector-marketo/source/util"
 )
 
 func TestSource_SuccessfullSnapshot(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := AddLeads(client, 10)
+	testLeads, err := util.AddLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	err = configAndOpen(ctx, src, nil)
+	err = util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := nextRecord(ctx, src, t)
-		assert(t, &rec, lead)
+		rec := util.NextRecord(ctx, src, t)
+		util.Assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -78,22 +67,22 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 
 func TestSource_SnapshotRestart(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := AddLeads(client, 10)
+	testLeads, err := util.AddLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.TearDown(ctx)
@@ -107,13 +96,13 @@ func TestSource_SnapshotRestart(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	err = configAndOpen(ctx, src, pos)
+	err = util.ConfigAndOpen(ctx, src, pos)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := nextRecord(ctx, src, t)
-		assert(t, &rec, lead)
+		rec := util.NextRecord(ctx, src, t)
+		util.Assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -123,12 +112,12 @@ func TestSource_SnapshotRestart(t *testing.T) {
 
 func TestSource_EmptyDatabase(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	err := configAndOpen(ctx, src, nil)
+	err := util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,11 +130,11 @@ func TestSource_EmptyDatabase(t *testing.T) {
 func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
 	ctx := context.Background()
-	src := &Source{}
+	src := &source.Source{}
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	err := configAndOpen(ctx, src, nil)
+	err := util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,24 +144,24 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	}
 	_, _ = src.Read(ctx)
 	time.Sleep(time.Second * 1)
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	testLeads, err := AddLeads(client, 5)
+	testLeads, err := util.AddLeads(client, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, lead := range testLeads {
-		rec := nextRecord(ctx, src, t)
-		assert(t, &rec, lead)
+		rec := util.NextRecord(ctx, src, t)
+		util.Assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -182,12 +171,12 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 
 func TestSource_NonExistentDatabase(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	cfg := getConfigs()
+	cfg := util.GetConfigs()
 	cfg[config.ClientID] = "non-existent"
 	cfg[config.ClientSecret] = "non-existent"
 	err := src.Configure(ctx, cfg)
@@ -202,23 +191,23 @@ func TestSource_NonExistentDatabase(t *testing.T) {
 
 func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	err := configAndOpen(ctx, src, nil)
+	err := util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := AddLeads(client, 1)
+	testLeads, err := util.AddLeads(client, 1)
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
@@ -230,12 +219,12 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	assert(t, &rec, testLeads[0])
-	updatedLeads, err := UpdateLeads(client, testLeads[0]["email"].(string))
+	util.Assert(t, &rec, testLeads[0])
+	updatedLeads, err := util.UpdateLeads(client, testLeads[0]["email"].(string))
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = nextRecord(ctx, src, t)
+	rec = util.NextRecord(ctx, src, t)
 	var record map[string]interface{}
 	err = json.Unmarshal(rec.Payload.Bytes(), &record)
 	if err != nil {
@@ -249,33 +238,33 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 func TestCDC_Delete(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
 	ctx := context.Background()
-	src := &Source{}
+	src := &source.Source{}
 	defer func() {
 		_ = src.TearDown(ctx)
 	}()
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = configAndOpen(ctx, src, nil)
+	err = util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	testLeads, err := AddLeads(client, 1)
+	testLeads, err := util.AddLeads(client, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = nextRecord(ctx, src, t)
-		assert(t, &rec, lead)
+		rec = util.NextRecord(ctx, src, t)
+		util.Assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -291,7 +280,7 @@ func TestCDC_Delete(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	rec = nextRecord(ctx, src, t)
+	rec = util.NextRecord(ctx, src, t)
 	err = json.Unmarshal(rec.Key.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -303,57 +292,57 @@ func TestCDC_Delete(t *testing.T) {
 
 func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	src := &Source{}
+	src := &source.Source{}
 	ctx := context.Background()
-	err := configAndOpen(ctx, src, nil)
+	err := util.ConfigAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := getClient()
+	client, err := util.GetClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := AddLeads(client, 3)
+	testLeads, err := util.AddLeads(client, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := util.CleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = nextRecord(ctx, src, t)
-		assert(t, &rec, lead)
+		rec = util.NextRecord(ctx, src, t)
+		util.Assert(t, &rec, lead)
 	}
 	lastPosition := rec.Position
 	_ = src.TearDown(ctx)
-	src1 := &Source{}
+	src1 := &source.Source{}
 	defer func() {
 		_ = src1.TearDown(ctx)
 	}()
-	err = configAndOpen(ctx, src1, lastPosition)
+	err = util.ConfigAndOpen(ctx, src1, lastPosition)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testLeads, err = AddLeads(client, 1)
+	testLeads, err = util.AddLeads(client, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = nextRecord(ctx, src1, t)
-	assert(t, &rec, testLeads[0])
+	rec = util.NextRecord(ctx, src1, t)
+	util.Assert(t, &rec, testLeads[0])
 }
 
 func TestOpenSource_FailsParsePosition(t *testing.T) {
 	ctx := context.Background()
-	source := &Source{}
+	source := &source.Source{}
 	defer func() {
 		_ = source.Teardown(ctx)
 	}()
-	err := source.Configure(ctx, getConfigs())
+	err := source.Configure(ctx, util.GetConfigs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,11 +355,11 @@ func TestOpenSource_FailsParsePosition(t *testing.T) {
 
 func TestOpenSource_InvalidPositionType(t *testing.T) {
 	ctx := context.Background()
-	source := &Source{}
+	source := &source.Source{}
 	defer func() {
 		_ = source.Teardown(ctx)
 	}()
-	err := source.Configure(ctx, getConfigs())
+	err := source.Configure(ctx, util.GetConfigs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +380,7 @@ func TestOpenSource_InvalidPositionType(t *testing.T) {
 }
 
 func TestConfigureSource_FailsWhenConfigEmpty(t *testing.T) {
-	con := &Source{}
+	con := &source.Source{}
 	err := con.Configure(context.Background(), make(map[string]string))
 	if err == nil {
 		t.Errorf("expected no error, got %v", err)
@@ -399,141 +388,4 @@ func TestConfigureSource_FailsWhenConfigEmpty(t *testing.T) {
 	if strings.HasPrefix(err.Error(), "config is invalid:") {
 		t.Errorf("expected error to be about missing config, got %v", err)
 	}
-}
-
-// returns configs for testing.
-func getConfigs() map[string]string {
-	cfg := map[string]string{}
-	cfg[config.ClientID] = ClinetID
-	cfg[config.ClientSecret] = ClientSecret
-	cfg[config.ClientEndpoint] = ClientEndpoint
-	cfg[sourceConfig.ConfigKeyPollingPeriod] = "10s"
-	return cfg
-}
-
-// returns new client.
-func getClient() (marketoclient.Client, error) {
-	client, err := marketoclient.NewClient(minimarketo.ClientConfig{
-		ID:       ClinetID,
-		Secret:   ClientSecret,
-		Endpoint: ClientEndpoint,
-	})
-	if err != nil {
-		return marketoclient.Client{}, err
-	}
-	return client, nil
-}
-
-// asserts actual record against expected lead.
-func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
-	var record map[string]interface{}
-	err := json.Unmarshal(actual.Payload.Bytes(), &record)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if expected["firstName"] != record["firstName"] {
-		t.Errorf("expected firstName %v, got %v", expected["firstName"], record["firstName"])
-	}
-	if expected["lastName"] != record["lastName"] {
-		t.Errorf("expected lastName %v, got %v", expected["lastName"], record["lastName"])
-	}
-	if expected["email"] != record["email"] {
-		t.Errorf("expected email %v, got %v", expected["email"], record["email"])
-	}
-}
-
-// generates a n number of leads and adds them to the database, also returns leads.
-func AddLeads(client marketoclient.Client, count int) ([]map[string]interface{}, error) {
-	seed := time.Now().UTC().UnixNano()
-	nameGenerator := namegenerator.NewNameGenerator(seed)
-	var leads []map[string]interface{}
-	for i := 0; i < count; i++ {
-		firstname := nameGenerator.Generate()
-		leads = append(leads, map[string]interface{}{
-			"firstName": firstname,
-			"lastName":  nameGenerator.Generate(),
-			"email":     firstname + "@meroxa.com",
-		})
-	}
-	err := client.CreateOrUpdateLeads(marketoclient.CreateOnly, leads)
-	if err != nil {
-		return nil, err
-	}
-	return leads, nil
-}
-
-// updates the leads for given LeadID
-func UpdateLeads(client marketoclient.Client, emailID string) (map[string]interface{}, error) {
-	seed := time.Now().UTC().UnixNano()
-	nameGenerator := namegenerator.NewNameGenerator(seed)
-	leads := map[string]interface{}{
-		"lastName": nameGenerator.Generate(),
-		"email":    emailID,
-	}
-	err := client.CreateOrUpdateLeads(marketoclient.UpdateOnly, []map[string]interface{}{leads})
-	if err != nil {
-		return nil, err
-	}
-	return leads, nil
-}
-
-// gets next record from the source
-func nextRecord(ctx context.Context, src *Source, t *testing.T) (rec sdk.Record) {
-	var err error
-	for {
-		rec, err = src.Read(ctx)
-		if errors.Is(err, sdk.ErrBackoffRetry) {
-			continue
-		}
-		if err != nil {
-			t.Errorf("expected no error, got %v", err)
-		}
-		break
-	}
-	return
-}
-
-// deletes all leads from marketo API
-func cleanUp(client marketoclient.Client, sinceTime time.Time) error {
-	token, err := client.GetNextPageToken(sinceTime)
-	if err != nil {
-		return err
-	}
-	res, err := client.GetLeadChanges(token, fields)
-	if err != nil {
-		return err
-	}
-	if len(res.Result) == 0 {
-		return nil
-	}
-	leadResult := []map[string]interface{}{}
-	err = json.Unmarshal(res.Result, &leadResult)
-	if err != nil {
-		return err
-	}
-	var leadIDs = make([]string, 0)
-	for _, data := range leadResult {
-		leadIDs = append(leadIDs, fmt.Sprint(data["leadId"].(float64)))
-	}
-	if len(leadIDs) == 0 {
-		return nil
-	}
-	err = client.DeleteLeadsByIDs(leadIDs)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// configures the source with the given configs and establishes a connection to Marketo
-func configAndOpen(ctx context.Context, s *Source, pos sdk.Position) error {
-	err := s.Configure(ctx, getConfigs())
-	if err != nil {
-		return err
-	}
-	err = s.Open(ctx, pos)
-	if err != nil {
-		return err
-	}
-	return nil
 }

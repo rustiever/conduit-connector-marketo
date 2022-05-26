@@ -361,7 +361,7 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 	oldestTime := time.Now().UTC()
 	for _, v := range folderResult {
-		date, _, found := strings.Cut(v.CreatedAt, "+")
+		date, _, found := cut(v.CreatedAt, "+")
 		if !found {
 			logger.Error().Msgf("Error while parsing the date %s", v.CreatedAt)
 			return time.Time{}, fmt.Errorf("error while parsing the date %s", v.CreatedAt)
@@ -377,4 +377,15 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	}
 
 	return oldestTime.UTC(), nil
+}
+
+// Cut slices s around the first instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, cut returns s, "", false.
+func cut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, "", false
 }
