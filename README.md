@@ -25,7 +25,7 @@ Snapshot iterator is used first to extract bulk data from Marketo instance. [Bul
 - Wait for Job to Complete -> `/bulk/v1/leads/export/{{exportID}}/status.json`
 - Get Your Leads -> `/bulk/v1/leads/export/{{exportID}}/file.json`
 
-After cycling through every 31-day range from the first lead until now, we’ll have a complete set. Then flush bulk data to the buffer which pushes data one by one to Conduit.
+After each cycle, obtained records will be flushed to conduit. Once all cycles(export jobs) are completed, connector switches to CDC mode.
 
 ### Change Data Capture Iterator
 Once Snapshot iterator is completed, connector automatically switches to CDC iterator. CDC events are captured using two REST endpoints, [Get Lead Changes](https://developers.marketo.com/documentation/rest/get-lead-changes/), [Get Lead by Id](https://developers.marketo.com/documentation/rest/get-lead-by-id/). In CDC we are intrested in `New Lead (12)` and `Change Data Value (13)` events. Hence once done with [Get Lead Changes](https://developers.marketo.com/documentation/rest/get-lead-changes/) api, we filter for these `activityTypeId` 12 and 13. Once we have list of changed leads ID's, we'll query each leads with [Get Lead by Id](https://developers.marketo.com/documentation/rest/get-lead-by-id/) API to get the changed data for leads. [Deleted Leads](https://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Activities/getDeletedLeadsUsingGET) API is used in order to capture the delete events. Output record will have a metadata of "action":"delete" to handle deletions by Conduit destination connector. No metadata is added for other CDC events such as New leads and Update leads. 
