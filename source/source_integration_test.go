@@ -26,22 +26,21 @@ import (
 	"github.com/rustiever/conduit-connector-marketo/source"
 	"github.com/rustiever/conduit-connector-marketo/source/iterator"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
-	"github.com/rustiever/conduit-connector-marketo/source/util"
 )
 
 func TestSource_SuccessfullSnapshot(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := util.AddLeads(client, 10)
+	testLeads, err := addLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
@@ -49,15 +48,15 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	err = util.ConfigAndOpen(ctx, src, nil)
+	err = configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := util.NextRecord(ctx, src, t)
-		util.Assert(t, &rec, lead)
+		rec := nextRecord(ctx, src, t)
+		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -67,17 +66,17 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 
 func TestSource_SnapshotRestart(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := util.AddLeads(client, 10)
+	testLeads, err := addLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
@@ -85,7 +84,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	pos, err := json.Marshal(position.Position{
 		Key:       "1",
@@ -96,13 +95,13 @@ func TestSource_SnapshotRestart(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	err = util.ConfigAndOpen(ctx, src, pos)
+	err = configAndOpen(ctx, src, pos)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	for _, lead := range testLeads {
-		rec := util.NextRecord(ctx, src, t)
-		util.Assert(t, &rec, lead)
+		rec := nextRecord(ctx, src, t)
+		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -115,9 +114,9 @@ func TestSource_EmptyDatabase(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	err := util.ConfigAndOpen(ctx, src, nil)
+	err := configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,9 +131,9 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	ctx := context.Background()
 	src := &source.Source{}
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	err := util.ConfigAndOpen(ctx, src, nil)
+	err := configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,26 +141,24 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
 		t.Fatalf("expected a BackoffRetry error, got: %v", err)
 	}
-	_, _ = src.Read(ctx)
-	time.Sleep(time.Second * 1)
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	testLeads, err := util.AddLeads(client, 5)
+	testLeads, err := addLeads(client, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, lead := range testLeads {
-		rec := util.NextRecord(ctx, src, t)
-		util.Assert(t, &rec, lead)
+		rec := nextRecord(ctx, src, t)
+		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -174,9 +171,9 @@ func TestSource_NonExistentDatabase(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	cfg := util.GetConfigs()
+	cfg := getConfigs()
 	cfg[config.ClientID] = "non-existent"
 	cfg[config.ClientSecret] = "non-existent"
 	err := src.Configure(ctx, cfg)
@@ -194,20 +191,20 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	err := util.ConfigAndOpen(ctx, src, nil)
+	err := configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := util.AddLeads(client, 1)
+	testLeads, err := addLeads(client, 1)
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
@@ -219,12 +216,12 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	util.Assert(t, &rec, testLeads[0])
-	updatedLeads, err := util.UpdateLeads(client, testLeads[0]["email"].(string))
+	assert(t, &rec, testLeads[0])
+	updatedLeads, err := updateLeads(client, testLeads[0]["email"].(string))
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = util.NextRecord(ctx, src, t)
+	rec = nextRecord(ctx, src, t)
 	var record map[string]interface{}
 	err = json.Unmarshal(rec.Payload.Bytes(), &record)
 	if err != nil {
@@ -240,31 +237,31 @@ func TestCDC_Delete(t *testing.T) {
 	ctx := context.Background()
 	src := &source.Source{}
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = util.ConfigAndOpen(ctx, src, nil)
+	err = configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
 	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
-	testLeads, err := util.AddLeads(client, 1)
+	testLeads, err := addLeads(client, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = util.NextRecord(ctx, src, t)
-		util.Assert(t, &rec, lead)
+		rec = nextRecord(ctx, src, t)
+		assert(t, &rec, lead)
 	}
 	_, err = src.Read(ctx)
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
@@ -276,11 +273,11 @@ func TestCDC_Delete(t *testing.T) {
 		t.Errorf("expected no error, got %v", err)
 	}
 	leadID := record["id"].(string)
-	err = client.DeleteLeadsByIDs([]string{leadID})
+	err = client.deleteLeadsByIDs([]string{leadID})
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	rec = util.NextRecord(ctx, src, t)
+	rec = nextRecord(ctx, src, t)
 	err = json.Unmarshal(rec.Key.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -294,46 +291,46 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	iterator.InitialDate = time.Now().UTC()
 	src := &source.Source{}
 	ctx := context.Background()
-	err := util.ConfigAndOpen(ctx, src, nil)
+	err := configAndOpen(ctx, src, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := util.GetClient()
+	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
-	testLeads, err := util.AddLeads(client, 3)
+	testLeads, err := addLeads(client, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := util.CleanUp(client, startTime)
+		err := cleanUp(client, startTime)
 		if err != nil {
 			t.Error(err)
 		}
 	})
 	var rec sdk.Record
 	for _, lead := range testLeads {
-		rec = util.NextRecord(ctx, src, t)
-		util.Assert(t, &rec, lead)
+		rec = nextRecord(ctx, src, t)
+		assert(t, &rec, lead)
 	}
 	lastPosition := rec.Position
-	_ = src.TearDown(ctx)
+	_ = src.Teardown(ctx)
 	src1 := &source.Source{}
 	defer func() {
-		_ = src1.TearDown(ctx)
+		_ = src1.Teardown(ctx)
 	}()
-	err = util.ConfigAndOpen(ctx, src1, lastPosition)
+	err = configAndOpen(ctx, src1, lastPosition)
 	if err != nil {
 		t.Fatal(err)
 	}
-	testLeads, err = util.AddLeads(client, 1)
+	testLeads, err = addLeads(client, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = util.NextRecord(ctx, src1, t)
-	util.Assert(t, &rec, testLeads[0])
+	rec = nextRecord(ctx, src1, t)
+	assert(t, &rec, testLeads[0])
 }
 
 func TestOpenSource_FailsParsePosition(t *testing.T) {
@@ -342,7 +339,7 @@ func TestOpenSource_FailsParsePosition(t *testing.T) {
 	defer func() {
 		_ = source.Teardown(ctx)
 	}()
-	err := source.Configure(ctx, util.GetConfigs())
+	err := source.Configure(ctx, getConfigs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,10 +353,7 @@ func TestOpenSource_FailsParsePosition(t *testing.T) {
 func TestOpenSource_InvalidPositionType(t *testing.T) {
 	ctx := context.Background()
 	source := &source.Source{}
-	defer func() {
-		_ = source.Teardown(ctx)
-	}()
-	err := source.Configure(ctx, util.GetConfigs())
+	err := source.Configure(ctx, getConfigs())
 	if err != nil {
 		t.Fatal(err)
 	}

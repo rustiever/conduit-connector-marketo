@@ -4,9 +4,11 @@ go 1.17
 
 require (
 	github.com/SpeakData/minimarketo v0.0.0-20170821092521-29339e452f44
-	github.com/conduitio/conduit-connector-sdk v0.2.0
+	github.com/conduitio/conduit-connector-sdk v0.2.1-0.20220512151626-07c8c0b907bf
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/jpillora/backoff v1.0.0
+	github.com/matryer/is v1.4.0
+	go.uber.org/goleak v1.1.12
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 )
@@ -14,7 +16,6 @@ require (
 require (
 	github.com/conduitio/conduit-connector-protocol v0.2.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/go-hclog v0.14.1 // indirect
 	github.com/hashicorp/go-plugin v1.4.3 // indirect

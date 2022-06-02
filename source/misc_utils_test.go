@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package util
+package source_test
 
 import (
 	"context"
@@ -51,7 +51,7 @@ type Client struct {
 }
 
 // returns new marketo client with new token.
-func NewClient(config minimarketo.ClientConfig) (Client, error) {
+func newClient(config minimarketo.ClientConfig) (Client, error) {
 	client, err := minimarketo.NewClient(config)
 	if err != nil {
 		return Client{}, err
@@ -60,7 +60,7 @@ func NewClient(config minimarketo.ClientConfig) (Client, error) {
 }
 
 // deletes leads be ID from marketo rest api.
-func (c Client) DeleteLeadsByIDs(ids []string) error {
+func (c Client) deleteLeadsByIDs(ids []string) error {
 	path := fmt.Sprintf("/rest/v1/leads/delete.json?id=%s", strings.Join(ids, ","))
 	response, err := c.Post(path, nil)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c Client) DeleteLeadsByIDs(ids []string) error {
 }
 
 // creates or updates leads in marketo rest api.
-func (c Client) CreateOrUpdateLeads(actionType string, leads []map[string]interface{}) error {
+func (c Client) createOrUpdateLeads(actionType string, leads []map[string]interface{}) error {
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"action": actionType,
 		"input":  leads,
@@ -93,7 +93,7 @@ func (c Client) CreateOrUpdateLeads(actionType string, leads []map[string]interf
 }
 
 // returnss nextPageToken from marketo rest api.
-func (c Client) GetNextPageToken(sinceTime time.Time) (string, error) {
+func (c Client) getNextPageToken(sinceTime time.Time) (string, error) {
 	formattedTime := sinceTime.UTC().Format(time.RFC3339)
 	path := fmt.Sprintf("/rest/v1/activities/pagingtoken.json?sinceDatetime=%s", formattedTime)
 	response, err := c.Get(path)
@@ -107,7 +107,7 @@ func (c Client) GetNextPageToken(sinceTime time.Time) (string, error) {
 }
 
 // returns updated leads from marketo rest api.
-func (c Client) GetLeadChanges(nextPageToken string, fields []string) (*minimarketo.Response, error) {
+func (c Client) getLeadChanges(nextPageToken string, fields []string) (*minimarketo.Response, error) {
 	path := fmt.Sprintf("/rest/v1/activities/leadchanges.json?nextPageToken=%s&fields=%s", nextPageToken, strings.Join(fields, ","))
 	response, err := c.Get(path)
 	if err != nil {
@@ -119,8 +119,34 @@ func (c Client) GetLeadChanges(nextPageToken string, fields []string) (*minimark
 	return response, nil
 }
 
+// returns filterd leads from marketo rest api.
+func (c Client) filterLeads(fileterType string, filterValues []string) (*json.RawMessage, error) {
+	path := fmt.Sprintf("/rest/v1/leads.json?filterType=%s&filterValues=%s", fileterType, strings.Join(filterValues, ","))
+	response, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	if !response.Success {
+		return nil, fmt.Errorf("%+v", response.Errors)
+	}
+	return &response.Result, nil
+}
+
+// returns Lead record from marketo rest api.
+func (c Client) getLeadByID(id int, fields []string) (*json.RawMessage, error) {
+	path := fmt.Sprintf("/rest/v1/lead/%d.json?fields=%s", id, strings.Join(fields, ","))
+	response, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	if !response.Success {
+		return nil, fmt.Errorf("%+v", response.Errors)
+	}
+	return &response.Result, nil
+}
+
 // returns configs for testing.
-func GetConfigs() map[string]string {
+func getConfigs() map[string]string {
 	cfg := map[string]string{}
 	cfg[config.ClientID] = ClinetID
 	cfg[config.ClientSecret] = ClientSecret
@@ -130,8 +156,8 @@ func GetConfigs() map[string]string {
 }
 
 // returns new client.
-func GetClient() (Client, error) {
-	client, err := NewClient(minimarketo.ClientConfig{
+func getClient() (Client, error) {
+	client, err := newClient(minimarketo.ClientConfig{
 		ID:       ClinetID,
 		Secret:   ClientSecret,
 		Endpoint: ClientEndpoint,
@@ -143,7 +169,7 @@ func GetClient() (Client, error) {
 }
 
 // asserts actual record against expected lead.
-func Assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
+func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 	var record map[string]interface{}
 	err := json.Unmarshal(actual.Payload.Bytes(), &record)
 	if err != nil {
@@ -161,7 +187,7 @@ func Assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 }
 
 // generates a n number of leads and adds them to the database, also returns leads.
-func AddLeads(client Client, count int) ([]map[string]interface{}, error) {
+func addLeads(client Client, count int) ([]map[string]interface{}, error) {
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
 	var leads []map[string]interface{}
@@ -173,7 +199,7 @@ func AddLeads(client Client, count int) ([]map[string]interface{}, error) {
 			"email":     firstname + "@meroxa.com",
 		})
 	}
-	err := client.CreateOrUpdateLeads(CreateOnly, leads)
+	err := client.createOrUpdateLeads(CreateOnly, leads)
 	if err != nil {
 		return nil, err
 	}
@@ -181,14 +207,14 @@ func AddLeads(client Client, count int) ([]map[string]interface{}, error) {
 }
 
 // updates the leads for given LeadID
-func UpdateLeads(client Client, emailID string) (map[string]interface{}, error) {
+func updateLeads(client Client, emailID string) (map[string]interface{}, error) {
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
 	leads := map[string]interface{}{
 		"lastName": nameGenerator.Generate(),
 		"email":    emailID,
 	}
-	err := client.CreateOrUpdateLeads(UpdateOnly, []map[string]interface{}{leads})
+	err := client.createOrUpdateLeads(UpdateOnly, []map[string]interface{}{leads})
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +222,7 @@ func UpdateLeads(client Client, emailID string) (map[string]interface{}, error) 
 }
 
 // gets next record from the source
-func NextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec sdk.Record) {
+func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec sdk.Record) {
 	var err error
 	for {
 		rec, err = src.Read(ctx)
@@ -212,12 +238,12 @@ func NextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec sdk.
 }
 
 // deletes all leads from marketo API
-func CleanUp(client Client, sinceTime time.Time) error {
-	token, err := client.GetNextPageToken(sinceTime)
+func cleanUp(client Client, sinceTime time.Time) error {
+	token, err := client.getNextPageToken(sinceTime)
 	if err != nil {
 		return err
 	}
-	res, err := client.GetLeadChanges(token, Fields)
+	res, err := client.getLeadChanges(token, Fields)
 	if err != nil {
 		return err
 	}
@@ -236,7 +262,7 @@ func CleanUp(client Client, sinceTime time.Time) error {
 	if len(leadIDs) == 0 {
 		return nil
 	}
-	err = client.DeleteLeadsByIDs(leadIDs)
+	err = client.deleteLeadsByIDs(leadIDs)
 	if err != nil {
 		return err
 	}
@@ -244,8 +270,8 @@ func CleanUp(client Client, sinceTime time.Time) error {
 }
 
 // configures the source with the given configs and establishes a connection to Marketo
-func ConfigAndOpen(ctx context.Context, s *source.Source, pos sdk.Position) error {
-	err := s.Configure(ctx, GetConfigs())
+func configAndOpen(ctx context.Context, s *source.Source, pos sdk.Position) error {
+	err := s.Configure(ctx, getConfigs())
 	if err != nil {
 		return err
 	}
