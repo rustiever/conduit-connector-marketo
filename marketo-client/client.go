@@ -273,7 +273,7 @@ func GetDataMap(keys []string, values []string) map[string]interface{} {
 type RetryFunc func() (bool, error)
 
 // retries supplied function using retry backoff strategy.
-func WithRetry(r RetryFunc) error {
+func WithRetry(ctx context.Context, r RetryFunc) error {
 	b := &backoff.Backoff{
 		Max:    2 * time.Minute,
 		Min:    10 * time.Second,
@@ -286,12 +286,16 @@ func WithRetry(r RetryFunc) error {
 			return err
 		}
 		if retry {
-			d := b.Duration()
-			time.Sleep(b.Duration())
-			if d == b.Max {
-				b.Reset()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(b.Duration()):
+				d := b.Duration()
+				if d == b.Max {
+					b.Reset()
+				}
+				continue
 			}
-			continue
 		} else if !retry {
 			break
 		}

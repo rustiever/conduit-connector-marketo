@@ -51,7 +51,7 @@ type Client struct {
 }
 
 // returns new marketo client with new token.
-func NewClient(config minimarketo.ClientConfig) (Client, error) {
+func newClient(config minimarketo.ClientConfig) (Client, error) {
 	client, err := minimarketo.NewClient(config)
 	if err != nil {
 		return Client{}, err
@@ -119,6 +119,32 @@ func (c Client) getLeadChanges(nextPageToken string, fields []string) (*minimark
 	return response, nil
 }
 
+// returns filterd leads from marketo rest api.
+func (c Client) filterLeads(fileterType string, filterValues []string) (*json.RawMessage, error) {
+	path := fmt.Sprintf("/rest/v1/leads.json?filterType=%s&filterValues=%s", fileterType, strings.Join(filterValues, ","))
+	response, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	if !response.Success {
+		return nil, fmt.Errorf("%+v", response.Errors)
+	}
+	return &response.Result, nil
+}
+
+// returns Lead record from marketo rest api.
+func (c Client) getLeadByID(id int, fields []string) (*json.RawMessage, error) {
+	path := fmt.Sprintf("/rest/v1/lead/%d.json?fields=%s", id, strings.Join(fields, ","))
+	response, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	if !response.Success {
+		return nil, fmt.Errorf("%+v", response.Errors)
+	}
+	return &response.Result, nil
+}
+
 // returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}
@@ -131,7 +157,7 @@ func getConfigs() map[string]string {
 
 // returns new client.
 func getClient() (Client, error) {
-	client, err := NewClient(minimarketo.ClientConfig{
+	client, err := newClient(minimarketo.ClientConfig{
 		ID:       ClinetID,
 		Secret:   ClientSecret,
 		Endpoint: ClientEndpoint,

@@ -19,13 +19,20 @@ import (
 	sourceConfig "github.com/rustiever/conduit-connector-marketo/source/config"
 )
 
+// var Connector = sdk.Connector{
+// 	NewSpecification: specification,
+// 	NewSource:        source.NewSource,
+// 	NewDestination:   nil,
+// }
+
 // Specification returns the connector's specification.
 func Specification() sdk.Specification {
 	return sdk.Specification{
-		Name:    "Marketo",
-		Summary: "A Adobe Marketo source connector, which pulls data from a given Marketo instance.",
-		Version: "v0.1.0",
-		Author:  "Sharan",
+		Name:        "Marketo",
+		Summary:     "A Adobe Marketo source connector, which syncs Leads from a given Marketo instance.",
+		Description: "Marketo source connector connects to Marketo instance through the REST API with provided configuration, using `clientID` and `clientSecret`. Once connector is started `Configure` method is called to parse configurations and validate them. After that `Open` method is called to establish connection to Marketo instance with provided position. Once connection is established `Read` method is called which calls current iterator's `Next` method to fetch next record. `Teardown` is called when connector is stopped.",
+		Version:     "v0.1.0",
+		Author:      "Sharan",
 		SourceParams: map[string]sdk.Parameter{
 			globalConfig.ClientID: {
 				Required:    true,
@@ -38,7 +45,6 @@ func Specification() sdk.Specification {
 				Description: "The client secret for the Marketo instance.",
 			},
 			globalConfig.ClientEndpoint: {
-
 				Required:    true,
 				Default:     "",
 				Description: "The endpoint for the Marketo instance.",

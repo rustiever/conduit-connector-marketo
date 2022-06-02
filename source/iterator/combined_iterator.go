@@ -33,7 +33,6 @@ type CombinedIterator struct {
 	pollingPeriod time.Duration
 	fields        []string
 	client        marketoclient.Client
-	position      sdk.Position
 }
 
 var ErrDone = errors.New("no more records in iterator")
@@ -64,7 +63,7 @@ func NewCombinedIterator(ctx context.Context, endpoint string, pollingPeriod tim
 	case position.TypeCDC:
 		logger.Trace().Msg("Starting creating a New CDC iterator")
 
-		c.cdcIterator, err = NewCDCIterator(ctx, &client, pollingPeriod, fields, p.UpdatedAt)
+		c.cdcIterator, err = NewCDCIterator(ctx, &client, pollingPeriod, fields, p.UpdatedAt, p.Key)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while creating a new CDC iterator")
 			return nil, err
@@ -84,7 +83,7 @@ func (c *CombinedIterator) HasNext(ctx context.Context) bool {
 		// case of empty database or end of database
 		if !c.snapshotIterator.HasNext(ctx) {
 			sdk.Logger(ctx).Info().Msg("Switching to CDC iterator...")
-			err := c.switchToCDCIterator(ctx)
+			err := c.switchToCDCIterator(ctx, "") // empty string no last key, so process all records
 			if err != nil {
 				sdk.Logger(ctx).Err(err).Msg("Error while switching to CDC iterator")
 				return false
@@ -111,8 +110,7 @@ func (c *CombinedIterator) Next(ctx context.Context) (sdk.Record, error) {
 		}
 		if !c.snapshotIterator.HasNext(ctx) {
 			logger.Info().Msg("Switching to CDC iterator...")
-			c.position = record.Position
-			err := c.switchToCDCIterator(ctx)
+			err := c.switchToCDCIterator(ctx, string(record.Key.Bytes()))
 			if err != nil {
 				return sdk.Record{}, err
 			}
@@ -137,13 +135,13 @@ func (c *CombinedIterator) Stop() {
 	}
 }
 
-func (c *CombinedIterator) switchToCDCIterator(ctx context.Context) error {
+func (c *CombinedIterator) switchToCDCIterator(ctx context.Context, fromKey string) error {
 	lastModifiedTime := c.snapshotIterator.lastMaxModified
 	if lastModifiedTime.IsZero() {
 		lastModifiedTime = time.Now().UTC()
 	}
 	var err error
-	c.cdcIterator, err = NewCDCIterator(ctx, &c.client, c.pollingPeriod, c.fields, lastModifiedTime)
+	c.cdcIterator, err = NewCDCIterator(ctx, &c.client, c.pollingPeriod, c.fields, lastModifiedTime, fromKey)
 	if err != nil {
 		return fmt.Errorf("could not create cdc iterator: %w", err)
 	}

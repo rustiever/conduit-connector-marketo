@@ -48,17 +48,19 @@ type CDCIterator struct {
 	buffer       chan Record           // buffer to store latest leads
 	ticker       *time.Ticker          // ticker to poll marketo
 	tomb         *tomb.Tomb            // tomb to handle errors in goRoutines
-	lastModified time.Time             // time to start polling from
+	lastModified time.Time             // last time fetched from marketo
+	lastEntryKey string                // last key fetched from marketo
 }
 
-func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPeriod time.Duration, fields []string, lastModifiedTime time.Time) (*CDCIterator, error) {
+func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPeriod time.Duration, fields []string, lastModifiedTime time.Time, lastKey string) (*CDCIterator, error) {
 	iterator := &CDCIterator{
 		client:       client,
 		buffer:       make(chan Record, 1),
 		ticker:       time.NewTicker(pollingPeriod),
 		tomb:         &tomb.Tomb{},
 		fields:       fields,
-		lastModified: lastModifiedTime.Add(time.Second),
+		lastEntryKey: lastKey,
+		lastModified: lastModifiedTime.UTC(),
 	}
 	iterator.tomb.Go(func() error {
 		return iterator.poll(ctx)
@@ -122,9 +124,7 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 			return sdk.Record{}, err
 		}
 		return sdk.Record{
-			Key: sdk.StructuredData{
-				"id": key,
-			},
+			Key:      sdk.RawData(key),
 			Position: pos,
 			Metadata: map[string]string{
 				"action": "delete",
@@ -146,6 +146,7 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
 	}.ToRecordPosition()
+	r.data["id"] = key
 	rec := sdk.Record{
 		Payload: sdk.StructuredData(r.data),
 		Metadata: map[string]string{
@@ -154,9 +155,7 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 			"updatedAt": updatedAt.UTC().Format(time.RFC3339),
 		},
 		Position: position,
-		Key: sdk.StructuredData{
-			"id": key,
-		},
+		Key:      sdk.RawData(key),
 	}
 	return rec, nil
 }
@@ -181,7 +180,18 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		logger.Error().Err(err).Msg("Error while getting the deleted leads")
 		return err
 	}
+	var lastKey = -1 // -1 indicates no last key, so proccess all leads
+	if c.lastEntryKey != "" {
+		lastKey, err = strconv.Atoi(c.lastEntryKey)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error while parsing the last entry key")
+			return err
+		}
+	}
 	for _, id := range deletedLeadIds {
+		if id <= lastKey {
+			continue
+		}
 		c.buffer <- Record{
 			id:      id,
 			deleted: true,
@@ -189,6 +199,9 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		}
 	}
 	for _, id := range changedLeadIds {
+		if id <= lastKey {
+			continue
+		}
 		res, err := c.client.GetLeadByID(id, c.fields)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while getting the lead")

@@ -20,5 +20,9 @@ import (
 )
 
 func main() {
-	sdk.Serve(marketo.Specification, source.NewSource, nil)
+	sdk.Serve(sdk.Connector{
+		NewSpecification: marketo.Specification,
+		NewSource:        source.NewSource,
+		NewDestination:   nil,
+	})
 }

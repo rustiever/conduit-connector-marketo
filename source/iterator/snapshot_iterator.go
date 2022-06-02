@@ -49,9 +49,8 @@ type SnapshotIterator struct {
 	iteratorCount   int              // holds the number of snapshots to be created
 	errChan         chan error       // used to send errors
 	csvReader       chan *csv.Reader // holds bulk data returned from the API in CSV format
-	buffer          chan []string    // holds the data to be flushed to the conduit
-	flushingDone    chan struct{}    // used to signal that the flush goroutine has finished
-	flushDone       bool             // used as flag to indicate HasNext()
+	data            chan []string    // holds the data to be flushed to the conduit
+	hasData         chan struct{}    // used to signal that the iterator has data
 	lastMaxModified time.Time        // holds the last maxModified date of the snapshot
 }
 
@@ -65,9 +64,8 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 		client:          &client,
 		fields:          fields,
 		errChan:         make(chan error),
-		buffer:          make(chan []string, 100),
-		flushingDone:    make(chan struct{}),
-		flushDone:       false,
+		data:            make(chan []string, 100),
+		hasData:         make(chan struct{}, 100),
 		lastMaxModified: time.Time{},
 	}
 	eg, ctx := errgroup.WithContext(ctx)
@@ -109,14 +107,17 @@ func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
 		}
 		sdk.Logger(ctx).Info().Msg("Stopping the SnapshotIterator..." + ctx.Err().Error())
 		return false
-	case <-s.flushingDone:
-		s.flushDone = true
-	default:
+	case _, ok := <-s.hasData:
+		if !ok {
+			break
+		}
+		return true
 	}
-	if s.flushDone && len(s.buffer) == 0 {
+	if len(s.data) > 0 {
+		return true
+	} else {
 		return false
 	}
-	return true
 }
 
 // returns Next record from the iterator's buffer, otherwise returns error.
@@ -139,7 +140,7 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 			logger.Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
 		}
 		return sdk.Record{}, fmt.Errorf("%s and %s", err1.Error(), err2.Error())
-	case data, ok := <-s.buffer:
+	case data, ok := <-s.data:
 		if !ok {
 			logger.Info().Msg("Buffer is empty")
 			return sdk.Record{}, sdk.ErrBackoffRetry
@@ -183,9 +184,6 @@ func (s *SnapshotIterator) pull(ctx context.Context) error {
 		startDate = date
 		endDate = date.Add(time.Hour * time.Duration(MaximumDaysGap)).Add(-1 * time.Second)
 		date = date.Add(time.Hour * time.Duration(MaximumDaysGap))
-		if endDate.After(time.Now()) {
-			endDate = time.Now().Add(1 * time.Hour)
-		}
 		logger.Info().Msgf("Pulling data from %s to %s", startDate.Format(time.RFC3339), endDate.Format(time.RFC3339))
 		err := s.getLeads(ctx, startDate, endDate)
 		if err != nil {
@@ -201,8 +199,8 @@ func (s *SnapshotIterator) flush(ctx context.Context) error {
 	logger := sdk.Logger(ctx).With().Str("Method", "flush").Logger()
 	logger.Trace().Msg("Starting the flush method")
 	defer func() {
-		close(s.buffer)
-		s.flushingDone <- struct{}{}
+		close(s.data)
+		close(s.hasData)
 	}()
 	for reader := range s.csvReader {
 		for {
@@ -215,7 +213,8 @@ func (s *SnapshotIterator) flush(ctx context.Context) error {
 				logger.Err(err).Msg("Error while reading csv")
 				return err
 			}
-			s.buffer <- rec
+			s.data <- rec
+			s.hasData <- struct{}{}
 		}
 	}
 	return nil
@@ -231,7 +230,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 		logger.Error().Err(err).Msg("Error while creating export")
 		return err
 	}
-	err = marketoclient.WithRetry(func() (bool, error) {
+	err = marketoclient.WithRetry(ctx, func() (bool, error) {
 		_, err := s.client.EnqueueExportLeads(s.exportID)
 		if errors.Is(err, marketoclient.ErrEnqueueLimit) {
 			logger.Trace().Msg("Enqueue limit reached")
@@ -248,7 +247,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 		return err
 	}
 
-	err = marketoclient.WithRetry(func() (bool, error) {
+	err = marketoclient.WithRetry(ctx, func() (bool, error) {
 		statusResult, err := s.client.StatusOfExportLeads(s.exportID)
 		if err != nil {
 			logger.Err(err).Msg("Error while getting status of export")
@@ -325,9 +324,7 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 			"updatedAt": updatedAt.Format(time.RFC3339),
 		},
 		Position: pos,
-		Key: sdk.StructuredData{
-			"id": position.Key,
-		},
+		Key:      sdk.RawData(position.Key),
 	}
 
 	return rec, nil

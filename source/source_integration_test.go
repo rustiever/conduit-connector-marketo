@@ -48,7 +48,7 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	err = configAndOpen(ctx, src, nil)
 	if err != nil {
@@ -84,7 +84,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	pos, err := json.Marshal(position.Position{
 		Key:       "1",
@@ -114,7 +114,7 @@ func TestSource_EmptyDatabase(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	err := configAndOpen(ctx, src, nil)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	ctx := context.Background()
 	src := &source.Source{}
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	err := configAndOpen(ctx, src, nil)
 	if err != nil {
@@ -141,8 +141,6 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	if !errors.Is(err, sdk.ErrBackoffRetry) {
 		t.Fatalf("expected a BackoffRetry error, got: %v", err)
 	}
-	_, _ = src.Read(ctx)
-	time.Sleep(time.Second * 1)
 	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +171,7 @@ func TestSource_NonExistentDatabase(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	cfg := getConfigs()
 	cfg[config.ClientID] = "non-existent"
@@ -193,7 +191,7 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	err := configAndOpen(ctx, src, nil)
 	if err != nil {
@@ -239,7 +237,7 @@ func TestCDC_Delete(t *testing.T) {
 	ctx := context.Background()
 	src := &source.Source{}
 	defer func() {
-		_ = src.TearDown(ctx)
+		_ = src.Teardown(ctx)
 	}()
 	client, err := getClient()
 	if err != nil {
@@ -318,10 +316,10 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 		assert(t, &rec, lead)
 	}
 	lastPosition := rec.Position
-	_ = src.TearDown(ctx)
+	_ = src.Teardown(ctx)
 	src1 := &source.Source{}
 	defer func() {
-		_ = src1.TearDown(ctx)
+		_ = src1.Teardown(ctx)
 	}()
 	err = configAndOpen(ctx, src1, lastPosition)
 	if err != nil {
@@ -355,9 +353,6 @@ func TestOpenSource_FailsParsePosition(t *testing.T) {
 func TestOpenSource_InvalidPositionType(t *testing.T) {
 	ctx := context.Background()
 	source := &source.Source{}
-	defer func() {
-		_ = source.Teardown(ctx)
-	}()
 	err := source.Configure(ctx, getConfigs())
 	if err != nil {
 		t.Fatal(err)
