@@ -49,18 +49,18 @@ func Test_ParseRecordPosition(t *testing.T) {
 		{
 			name:    "cdc type position",
 			wantErr: false,
-			in:      []byte("{\"key\":\"test\",\"createdAt\":\"0001-01-01T00:00:00Z\",\"updatedAt\":\"0001-01-01T00:00:00Z\",\"type\":1}"),
+			in:      []byte("{\"key\":\"test\",\"createdAt\":\"2020-01-01T04:12:27Z\",\"updatedAt\":\"2020-01-01T04:12:27Z\",\"type\":1}"),
 			out: Position{
 				Key:       "test",
 				Type:      TypeCDC,
-				UpdatedAt: time.Time{},
-				CreatedAt: time.Time{},
+				UpdatedAt: time.Date(2020, 1, 1, 4, 12, 27, 0, time.UTC),
+				CreatedAt: time.Date(2020, 1, 1, 4, 12, 27, 0, time.UTC),
 			},
 		},
 		{
 			name:    "invalid timestamp returns error",
 			wantErr: true,
-			in:      []byte("{\"key\":\"test\",\"createdAt\":\"001-01-01T0:00:00Z\",\"updatedAt\":\"0001-01-01T00:0:00Z\",\"type\":1}"),
+			in:      []byte("{\"key\":\"test\",\"createdAt\":\"0012-01-01T0:05:10Z\",\"updatedAt\":\"2022-05-01T011:0:00Z\",\"type\":1}"),
 			out:     Position{},
 		},
 		{

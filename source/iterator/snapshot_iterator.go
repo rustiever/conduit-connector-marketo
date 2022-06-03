@@ -74,7 +74,7 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 	}
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting initial date")
-		return nil, err
+		return nil, fmt.Errorf("error getting initial date: %w", err)
 	}
 	startDateDuration := time.Since(InitialDate)
 	s.iteratorCount = int(startDateDuration.Hours()/MaximumDaysGap) + 1
@@ -101,9 +101,9 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
 	select {
 	case <-ctx.Done():
-		err2 := s.stop(ctx)
-		if err2 != nil {
-			sdk.Logger(ctx).Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
+		err := s.stop(ctx)
+		if err != nil {
+			sdk.Logger(ctx).Error().Err(err).Msg("Error while stopping the SnapshotIterator")
 		}
 		sdk.Logger(ctx).Info().Msg("Stopping the SnapshotIterator..." + ctx.Err().Error())
 		return false
@@ -113,11 +113,7 @@ func (s *SnapshotIterator) HasNext(ctx context.Context) bool {
 		}
 		return true
 	}
-	if len(s.data) > 0 {
-		return true
-	} else {
-		return false
-	}
+	return len(s.data) > 0
 }
 
 // returns Next record from the iterator's buffer, otherwise returns error.
@@ -127,19 +123,21 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 
 	select {
 	case <-ctx.Done():
-		err2 := s.stop(ctx)
-		if err2 != nil {
-			logger.Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
+		err := s.stop(ctx)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error while stopping the SnapshotIterator")
+			return sdk.Record{}, fmt.Errorf("%v;error while stopping the SnapshotIterator: %w", ctx.Err(), err)
 		}
-		return sdk.Record{}, ctx.Err()
-	case err1 := <-s.errChan:
-		logger.Error().Err(err1).Msg("Error while pulling from Marketo or flushing to buffer")
+		return sdk.Record{}, fmt.Errorf("context is done: %w", ctx.Err())
+	case e1 := <-s.errChan:
+		logger.Error().Err(e1).Msg("Error while pulling from Marketo or flushing to buffer")
 		logger.Info().Msg("Stopping the SnapshotIterator...")
-		err2 := s.stop(ctx)
-		if err2 != nil {
-			logger.Error().Err(err2).Msg("Error while stopping the SnapshotIterator")
+		e2 := s.stop(ctx)
+		if e2 != nil {
+			logger.Error().Err(e2).Msg("Error while stopping the SnapshotIterator")
+			return sdk.Record{}, fmt.Errorf("%w; error while stopping snapshot iterator: %v", e1, e2)
 		}
-		return sdk.Record{}, fmt.Errorf("%s and %s", err1.Error(), err2.Error())
+		return sdk.Record{}, fmt.Errorf("error occured during pulling or flushing records from marketo to buffer: %w", e1)
 	case data, ok := <-s.data:
 		if !ok {
 			logger.Info().Msg("Buffer is empty")
@@ -148,7 +146,7 @@ func (s *SnapshotIterator) Next(ctx context.Context) (sdk.Record, error) {
 		record, err := s.prepareRecord(ctx, data)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while preparing record")
-			return sdk.Record{}, err
+			return sdk.Record{}, fmt.Errorf("error while preparing record: %w", err)
 		}
 		return record, nil
 	}
@@ -168,7 +166,7 @@ func (s *SnapshotIterator) stop(ctx context.Context) error {
 		return nil
 	} else if err != nil {
 		logger.Error().Err(err).Msg("Error while cancelling export")
-		return err
+		return fmt.Errorf("error while cancelling export: %w", err)
 	}
 	return nil
 }
@@ -188,7 +186,7 @@ func (s *SnapshotIterator) pull(ctx context.Context) error {
 		err := s.getLeads(ctx, startDate, endDate)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while getting snapshot of leads")
-			return err
+			return fmt.Errorf("error while getting snapshot of leads: %w", err)
 		}
 	}
 	return nil
@@ -211,7 +209,7 @@ func (s *SnapshotIterator) flush(ctx context.Context) error {
 			}
 			if err != nil {
 				logger.Err(err).Msg("Error while reading csv")
-				return err
+				return fmt.Errorf("error while reading csv: %s", err.Error())
 			}
 			s.data <- rec
 			s.hasData <- struct{}{}
@@ -228,7 +226,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 	s.exportID, err = s.client.CreateExportLeads(s.fields, startDate.UTC().Format(time.RFC3339), endDate.UTC().Format(time.RFC3339))
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while creating export")
-		return err
+		return fmt.Errorf("error while creating export: %w", err)
 	}
 	err = marketoclient.WithRetry(ctx, func() (bool, error) {
 		_, err := s.client.EnqueueExportLeads(s.exportID)
@@ -244,7 +242,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 	})
 	if err != nil {
 		logger.Err(err).Msg("Error while enqueuing export")
-		return err
+		return fmt.Errorf("error while enqueuing export: %w", err)
 	}
 
 	err = marketoclient.WithRetry(ctx, func() (bool, error) {
@@ -334,13 +332,13 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 func (s *SnapshotIterator) getLastProcessedDate(ctx context.Context, p position.Position) (time.Time, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "getInitialDate").Logger()
 	logger.Trace().Msg("Starting the getInitialDate method")
-	var date = p.CreatedAt.Add(1 * time.Second)
+	var date = p.CreatedAt.Add(1 * time.Second) // start pulling data from next second to avoid duplicates
 	var err error
 	if reflect.ValueOf(p).IsZero() {
 		date, err = s.getLeastDate(ctx, *s.client)
 		if err != nil {
 			sdk.Logger(ctx).Error().Err(err).Msg("Failed to get the oldest date from marketo")
-			return time.Time{}, err
+			return time.Time{}, fmt.Errorf("failed to get the oldest date from marketo %w", err)
 		}
 	}
 	return date, nil
@@ -354,7 +352,7 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 	folderResult, err := client.GetAllFolders(1)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the folders")
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("error while getting the folders %w", err)
 	}
 	oldestTime := time.Now().UTC()
 	for _, v := range folderResult {
@@ -366,7 +364,7 @@ func (s *SnapshotIterator) getLeastDate(ctx context.Context, client marketoclien
 		t, err := time.Parse(time.RFC3339, date)
 		if err != nil {
 			logger.Error().Err(err).Msgf("Error while parsing the date %s", date)
-			return time.Time{}, err
+			return time.Time{}, fmt.Errorf("error while parsing the date %s %w", date, err)
 		}
 		if t.Before(oldestTime) {
 			oldestTime = t

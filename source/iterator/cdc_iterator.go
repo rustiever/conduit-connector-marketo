@@ -168,24 +168,24 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 	c.lastModified = time.Now().UTC()
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the next page token")
-		return err
+		return fmt.Errorf("error getting next page token %w", err)
 	}
 	changedLeadIds, err := c.GetChangedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the changed leads")
-		return err
+		return fmt.Errorf("error getting changed leads %w", err)
 	}
 	deletedLeadIds, err := c.GetDeletedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the deleted leads")
-		return err
+		return fmt.Errorf("error getting deleted leads %w", err)
 	}
 	var lastKey = -1 // -1 indicates no last key, so proccess all leads
 	if c.lastEntryKey != "" {
 		lastKey, err = strconv.Atoi(c.lastEntryKey)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while parsing the last entry key")
-			return err
+			return fmt.Errorf("error parsing last entry key %w", err)
 		}
 	}
 	for _, id := range deletedLeadIds {
@@ -205,13 +205,13 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		res, err := c.client.GetLeadByID(id, c.fields)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while getting the lead")
-			return err
+			return fmt.Errorf("error getting lead %w", err)
 		}
 		dataMap := make([]map[string]interface{}, 0)
 		err = json.Unmarshal(*res, &dataMap)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while unmarshalling the lead")
-			return err
+			return fmt.Errorf("error unmarshalling lead %w", err)
 		}
 		for _, data := range dataMap {
 			c.buffer <- Record{

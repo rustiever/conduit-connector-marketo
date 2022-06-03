@@ -52,7 +52,7 @@ func (s *Source) Configure(ctx context.Context, cfg map[string]string) error {
 	sourceConfig, err := config.ParseSourceConfig(ctx, cfg)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error While parsing the Source Config")
-		return err
+		return fmt.Errorf("couldn't parse the source config: %w", err)
 	}
 	s.config = sourceConfig
 	logger.Trace().Msg("Successfully Configured the Source Connector")
@@ -66,7 +66,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 	p, err := position.ParseRecordPosition(pos)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error While parsing the Position")
-		return err
+		return fmt.Errorf("couldn't parse the position: %w", err)
 	}
 	logger.Info().Msgf("Requested fields: %s", s.config.Fields)
 
@@ -79,7 +79,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 	s.client, err = marketoclient.NewClient(config)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error While Creating the Marketo Client")
-		return err
+		return fmt.Errorf("couldn't create the marketo client: %w", err)
 	}
 	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields)
 	if err != nil {
@@ -103,7 +103,7 @@ func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
 	record, err := s.iterator.Next(ctx)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error while fetching the records")
-		return sdk.Record{}, err
+		return sdk.Record{}, fmt.Errorf("couldn't fetch the records: %w", err)
 	}
 	return record, nil
 }
