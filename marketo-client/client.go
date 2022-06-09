@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package marketoclient
 
 import (
@@ -159,7 +160,11 @@ func (c Client) FileExportLeads(ctx context.Context, endpoint string, exportID s
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-	req.Header.Set("Authorization", "Bearer"+c.GetAuthToken())
+	token, err := c.GetAuthToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get auth token: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer"+token)
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response: %v", err)
@@ -173,11 +178,14 @@ func (c Client) FileExportLeads(ctx context.Context, endpoint string, exportID s
 }
 
 // returns token for marketo rest api.
-func (c Client) GetAuthToken() string {
+func (c Client) GetAuthToken() (string, error) {
 	if c.GetTokenInfo().Expires.Before(time.Now().UTC()) {
-		_, _ = c.RefreshToken()
+		_, err := c.RefreshToken()
+		if err != nil {
+			return "", err
+		}
 	}
-	return c.GetTokenInfo().Token
+	return c.GetTokenInfo().Token, nil
 }
 
 // returns all folders from marketo.

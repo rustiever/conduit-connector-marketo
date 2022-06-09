@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package source_test
 
 import (
@@ -41,7 +42,6 @@ var (
 	ClinetID       = os.Getenv("MARKETO_CLIENT_ID")
 	ClientSecret   = os.Getenv("MARKETO_CLIENT_SECRET")
 	ClientEndpoint = os.Getenv("MARKETO_CLIENT_ENDPOINT")
-	Seed           = time.Now().UTC().UnixNano()
 	Fields         = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
 )
 

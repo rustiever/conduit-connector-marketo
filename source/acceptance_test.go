@@ -16,7 +16,6 @@ package source_test
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
@@ -74,6 +73,7 @@ func TestAcceptance(t *testing.T) {
 // AcceptanceTestDriver implements sdk.AcceptanceTestDriver
 type AcceptanceTestDriver struct {
 	Config AcceptanceSourceTestDriverConfig
+	sdk.ConfigurableAcceptanceTestDriver
 }
 
 // AcceptanceSourceTestDriverConfig contains the configuration for
@@ -82,8 +82,12 @@ type AcceptanceSourceTestDriverConfig struct {
 	// Connector is the connector to be tested.
 	Connector sdk.Connector
 
-	// SourceConfig config for source
+	// SourceConfig should be a valid config for a source connector, reading
+	// from the same location as the destination will write to.
 	SourceConfig map[string]string
+	// DestinationConfig should be a valid config for a destination connector,
+	// writing to the same location as the source will read from.
+	DestinationConfig map[string]string
 
 	// BeforeTest is executed before each acceptance test.
 	BeforeTest func(t *testing.T)
@@ -93,11 +97,6 @@ type AcceptanceSourceTestDriverConfig struct {
 	// GoleakOptions will be applied to goleak.VerifyNone. Can be used to
 	// suppress false positive goroutine leaks.
 	GoleakOptions []goleak.Option
-
-	// Skip is a slice of regular expressions used to identify tests that should
-	// be skipped. The full test name will be matched against all regular
-	// expressions and the test will be skipped if a match is found.
-	Skip []string
 }
 
 func (d AcceptanceTestDriver) DestinationConfig(*testing.T) map[string]string {
@@ -126,22 +125,12 @@ func (d AcceptanceTestDriver) AfterTest(t *testing.T) {
 	}
 }
 
-func (d AcceptanceTestDriver) Skip(t *testing.T) {
-	var skipRegexs []*regexp.Regexp
-	for _, skipRegex := range d.Config.Skip {
-		r := regexp.MustCompile(skipRegex)
-		skipRegexs = append(skipRegexs, r)
-	}
-
-	for _, skipRegex := range skipRegexs {
-		if skipRegex.MatchString(t.Name()) {
-			t.Skipf("caller requested to skip tests that match the regex %q", skipRegex.String())
-		}
-	}
-}
-
 func (d AcceptanceTestDriver) GoleakOptions(_ *testing.T) []goleak.Option {
 	return d.Config.GoleakOptions
+}
+
+func (d AcceptanceTestDriver) ReadTimeout() time.Duration {
+	return time.Minute * 5
 }
 
 // WriteToSource writes data for source to pull data from
@@ -162,10 +151,6 @@ func (d AcceptanceTestDriver) WriteToSource(t *testing.T, records []sdk.Record) 
 	}
 
 	return records
-}
-
-func (d AcceptanceTestDriver) ReadFromDestination(*testing.T, []sdk.Record) []sdk.Record {
-	return []sdk.Record{}
 }
 
 func writeRecords(client Client, emailIDs []string) ([]sdk.Record, error) {
