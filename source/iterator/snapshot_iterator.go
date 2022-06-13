@@ -33,7 +33,7 @@ import (
 const (
 	// is the maximum number of days between two snapshots. If the gap between two snapshots is greater than this number,
 	// API will return an error. This is limitation of the API.
-	MaximumDaysGap = 744 // 31 days in Hours
+	MaximumHoursGap = 744 // 31 days in Hours
 )
 
 var (
@@ -77,7 +77,7 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 		return nil, fmt.Errorf("error getting initial date: %w", err)
 	}
 	startDateDuration := time.Since(InitialDate)
-	s.iteratorCount = int(startDateDuration.Hours()/MaximumDaysGap) + 1
+	s.iteratorCount = int(startDateDuration.Hours()/MaximumHoursGap) + 1
 	logger.Info().Msgf("Creating %d snapshots", s.iteratorCount)
 	s.csvReader = make(chan *csv.Reader, s.iteratorCount)
 	eg.Go(func() error {
@@ -180,8 +180,8 @@ func (s *SnapshotIterator) pull(ctx context.Context) error {
 	date := InitialDate
 	for i := 0; i < s.iteratorCount; i++ {
 		startDate = date
-		endDate = date.Add(time.Hour * time.Duration(MaximumDaysGap)).Add(-1 * time.Second)
-		date = date.Add(time.Hour * time.Duration(MaximumDaysGap))
+		endDate = date.Add(time.Hour * time.Duration(MaximumHoursGap)).Add(-1 * time.Second)
+		date = date.Add(time.Hour * time.Duration(MaximumHoursGap))
 		logger.Info().Msgf("Pulling data from %s to %s", startDate.Format(time.RFC3339), endDate.Format(time.RFC3339))
 		err := s.getLeads(ctx, startDate, endDate)
 		if err != nil {

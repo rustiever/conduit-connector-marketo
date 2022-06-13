@@ -166,7 +166,6 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 	logger := sdk.Logger(ctx).With().Str("Method", "flushLatestLeads").Logger()
 	logger.Trace().Msg("Starting the flushLatestLeads")
 	token, err := c.client.GetNextPageToken(c.lastModified)
-	c.lastModified = time.Now().UTC()
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the next page token")
 		return fmt.Errorf("error getting next page token %w", err)
@@ -222,6 +221,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 			}
 		}
 	}
+	c.lastModified = time.Now().UTC()
 	return nil
 }
 
