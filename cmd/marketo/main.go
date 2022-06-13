@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package main
 
 import (
@@ -20,5 +21,9 @@ import (
 )
 
 func main() {
-	sdk.Serve(marketo.Specification, source.NewSource, nil)
+	sdk.Serve(sdk.Connector{
+		NewSpecification: marketo.Specification,
+		NewSource:        source.NewSource,
+		NewDestination:   nil,
+	})
 }

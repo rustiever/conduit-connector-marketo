@@ -37,7 +37,7 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Input having only ClientId",
 			wantErr: true,
 			in: map[string]string{
-				"client_id": "key",
+				"clientID": "key",
 			},
 			expectedCon: Config{},
 		},
@@ -45,7 +45,7 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Input having only ClientSecret",
 			wantErr: true,
 			in: map[string]string{
-				"client_secret": "key",
+				"clientSecret": "key",
 			},
 			expectedCon: Config{},
 		},
@@ -53,7 +53,7 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Input having only Endpoint",
 			wantErr: true,
 			in: map[string]string{
-				"endpoint": "https://xxx-xxx-xxx.mktorest.com",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
 			},
 			expectedCon: Config{},
 		},
@@ -61,14 +61,14 @@ func TestParseGlobalConfig(t *testing.T) {
 			name:    "Input having all the fields",
 			wantErr: false,
 			in: map[string]string{
-				"client_id":     "key",
-				"client_secret": "key",
-				"endpoint":      "https://xxx-xxx-xxx.mktorest.com",
+				"clientID":       "key",
+				"clientSecret":   "key",
+				"clientEndpoint": "https://xxx-xxx-xxx.mktorest.com",
 			},
 			expectedCon: Config{
-				ClientID:     "key",
-				ClientSecret: "key",
-				Endpoint:     "https://xxx-xxx-xxx.mktorest.com",
+				ClientID:       "key",
+				ClientSecret:   "key",
+				ClientEndpoint: "https://xxx-xxx-xxx.mktorest.com",
 			},
 		},
 	}

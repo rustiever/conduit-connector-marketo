@@ -24,22 +24,23 @@ import (
 
 const (
 	// ID: Marketo client ID
-	ClientID = "client_id"
+	ClientID = "clientID"
 	// Secret: Marketo client secret
-	ClientSecret = "client_secret"
-	// Endpoint: https://xxx-xxx-xxx.mktorest.com
-	Endpoint = "endpoint"
+	ClientSecret = "clientSecret"
+	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
+	ClientEndpoint = "clientEndpoint"
 )
 
 var (
 	ErrEmptyConfig = errors.New("missing or empty config")
 )
 
-// Config represents configuration needed for S3
+// Config represents configuration needed for Marketo
+
 type Config struct {
-	ClientID     string
-	ClientSecret string
-	Endpoint     string
+	ClientID       string
+	ClientSecret   string
+	ClientEndpoint string
 }
 
 // Parse attempts to parse plugins.Config into a Config struct
@@ -67,18 +68,18 @@ func ParseGlobalConfig(ctx context.Context, cfg map[string]string) (Config, erro
 		return Config{}, err
 	}
 
-	endpoint, ok := cfg[Endpoint]
+	endpoint, ok := cfg[ClientEndpoint]
 	if !ok {
-		err := requiredConfigErr(Endpoint)
-		logger.Error().Stack().Err(err).Msgf("Error While Parsing %s", Endpoint)
+		err := requiredConfigErr(ClientEndpoint)
+		logger.Error().Stack().Err(err).Msgf("Error While Parsing %s", ClientEndpoint)
 		return Config{}, err
 	}
 
 	logger.Trace().Msg("Successfully Parsed the config")
 	config := Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint:     endpoint,
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		ClientEndpoint: endpoint,
 	}
 
 	return config, nil
