@@ -279,11 +279,7 @@ func TestCDC_Delete(t *testing.T) {
 		t.Errorf("expected no error, got %v", err)
 	}
 	rec = nextRecord(ctx, src, t)
-	err = json.Unmarshal(rec.Key.Bytes(), &record)
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if record["id"].(string) != leadID {
+	if string(rec.Key.Bytes()) != leadID {
 		t.Errorf("expected %v, got %v", leadID, record["id"])
 	}
 }
