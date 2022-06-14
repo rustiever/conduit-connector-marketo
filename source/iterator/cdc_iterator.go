@@ -170,7 +170,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		logger.Error().Err(err).Msg("Error while getting the next page token")
 		return fmt.Errorf("error getting next page token %w", err)
 	}
-	changedLeadIds, err := c.GetChangedLeadsIDs(ctx, token)
+	changedLeadIds, changedLeadMaps, err := c.GetChangedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the changed leads")
 		return fmt.Errorf("error getting changed leads %w", err)
@@ -189,9 +189,6 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		}
 	}
 	for _, id := range deletedLeadIds {
-		if id <= lastKey {
-			continue
-		}
 		c.buffer <- Record{
 			id:      id,
 			deleted: true,
@@ -199,7 +196,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		}
 	}
 	for _, id := range changedLeadIds {
-		if id <= lastKey {
+		if id <= lastKey && changedLeadMaps[id] == ActivityTypeIDNewLead {
 			continue
 		}
 		res, err := c.client.GetLeadByID(id, c.fields)
@@ -248,29 +245,29 @@ func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]i
 }
 
 // returns list of changed leads ids.
-func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, error) {
-	var leadIds = make(map[int]struct{}) // using map to avoid duplicates
+func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, map[int]int, error) {
+	var leadIds = make(map[int]int) // using map to avoid duplicates
 	moreResult := true
 	for moreResult {
 		response, err := c.client.GetLeadChanges(token, c.fields)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(response.Result) == 0 {
-			return nil, nil
+			return nil, nil, nil
 		}
 		moreResult = response.MoreResult
 		token = response.NextPageToken
 		var leadChangeResults []map[string]interface{}
 		err = json.Unmarshal(response.Result, &leadChangeResults)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, leadChangeResult := range leadChangeResults {
 			var activityTypeID = leadChangeResult["activityTypeId"].(float64)
 			if activityTypeID == ActivityTypeIDNewLead || activityTypeID == ActivityTypeIDChangeDataValue {
 				var id = int(leadChangeResult["leadId"].(float64))
-				leadIds[id] = struct{}{}
+				leadIds[id] = int(activityTypeID)
 			}
 		}
 	}
@@ -279,5 +276,5 @@ func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]i
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	return keys, nil
+	return keys, leadIds, nil
 }
