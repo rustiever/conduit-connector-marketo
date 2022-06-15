@@ -36,13 +36,10 @@ const (
 	MaximumHoursGap = 744 // 31 days in Hours
 )
 
-var (
-	InitialDate time.Time // holds the initial date of the snapshot
-)
-
 // to handle snapshot iterator
 type SnapshotIterator struct {
 	client          *marketoclient.Client
+	initialDate     time.Time        // holds the initial date of the snapshot
 	fields          []string         // holds the fields to be returned from the API
 	endpoint        string           // holds the endpoint of the API
 	exportID        string           // holds the current processin exportId
@@ -55,7 +52,7 @@ type SnapshotIterator struct {
 }
 
 // returns NewSnapshotIterator with supplied parameters, also initiates the pull and flush goroutines.
-func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, client marketoclient.Client, p position.Position) (*SnapshotIterator, error) {
+func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, client marketoclient.Client, p position.Position, initialDate time.Time) (*SnapshotIterator, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "NewSnapshotIterator").Logger()
 	logger.Trace().Msg("Starting the NewSnapshotIterator")
 	var err error
@@ -67,18 +64,19 @@ func NewSnapshotIterator(ctx context.Context, endpoint string, fields []string, 
 		data:            make(chan []string, 100),
 		hasData:         make(chan struct{}, 100),
 		lastMaxModified: time.Time{},
+		initialDate:     initialDate,
 	}
 	eg, ctx := errgroup.WithContext(ctx)
-	if InitialDate.IsZero() {
-		InitialDate, err = s.getLastProcessedDate(ctx, p)
+	if s.initialDate.IsZero() {
+		s.initialDate, err = s.getLastProcessedDate(ctx, p)
 	}
 	if err != nil {
 		logger.Error().Err(err).Msg("Error getting initial date")
 		return nil, fmt.Errorf("error getting initial date: %w", err)
 	}
-	startDateDuration := time.Since(InitialDate)
+	startDateDuration := time.Since(s.initialDate)
 	s.iteratorCount = int(startDateDuration.Hours()/MaximumHoursGap) + 1
-	logger.Info().Msgf("Creating %d snapshots", s.iteratorCount)
+	logger.Info().Msgf("Creating %d snapshots one by one", s.iteratorCount)
 	s.csvReader = make(chan *csv.Reader, s.iteratorCount)
 	eg.Go(func() error {
 		return s.pull(ctx)
@@ -177,7 +175,7 @@ func (s *SnapshotIterator) pull(ctx context.Context) error {
 	logger.Trace().Msg("Starting the pull")
 	defer close(s.csvReader)
 	var startDate, endDate time.Time
-	date := InitialDate
+	date := s.initialDate
 	for i := 0; i < s.iteratorCount; i++ {
 		startDate = date
 		endDate = date.Add(time.Hour * time.Duration(MaximumHoursGap)).Add(-1 * time.Second)
@@ -332,7 +330,10 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 func (s *SnapshotIterator) getLastProcessedDate(ctx context.Context, p position.Position) (time.Time, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "getInitialDate").Logger()
 	logger.Trace().Msg("Starting the getInitialDate method")
-	var date = p.CreatedAt.Add(1 * time.Second) // start pulling data from next second to avoid duplicates
+
+	// marketo api handles records at seconds level. When we start snapshot iterator with same last time,
+	// there is a chance of getting same records again. So we need to add 1 second to the last time.
+	var date = p.CreatedAt.Add(1 * time.Second)
 	var err error
 	if reflect.ValueOf(p).IsZero() {
 		date, err = s.getLeastDate(ctx, *s.client)
