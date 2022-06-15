@@ -119,6 +119,11 @@ func (c Client) getLeadChanges(nextPageToken string, fields []string) (*minimark
 	return response, nil
 }
 
+// returns Test source.
+func newTestSource() *source.Source {
+	return &source.Source{InitialDate: time.Now().UTC()}
+}
+
 // returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}

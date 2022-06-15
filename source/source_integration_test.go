@@ -25,17 +25,16 @@ import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/rustiever/conduit-connector-marketo/config"
 	"github.com/rustiever/conduit-connector-marketo/source"
-	"github.com/rustiever/conduit-connector-marketo/source/iterator"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
 )
 
 func TestSource_SuccessfullSnapshot(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
 	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 	startTime := time.Now().UTC()
+	src := newTestSource()
 	testLeads, err := addLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +45,6 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.Teardown(ctx)
@@ -66,11 +64,11 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 }
 
 func TestSource_SnapshotRestart(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
 	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
 	}
+	src := newTestSource()
 	startTime := time.Now().UTC()
 	testLeads, err := addLeads(client, 10)
 	if err != nil {
@@ -82,7 +80,6 @@ func TestSource_SnapshotRestart(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	src := &source.Source{}
 	ctx := context.Background()
 	defer func() {
 		_ = src.Teardown(ctx)
@@ -111,8 +108,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 }
 
 func TestSource_EmptyDatabase(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
-	src := &source.Source{}
+	src := newTestSource()
 	ctx := context.Background()
 	defer func() {
 		_ = src.Teardown(ctx)
@@ -128,9 +124,8 @@ func TestSource_EmptyDatabase(t *testing.T) {
 }
 
 func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
 	ctx := context.Background()
-	src := &source.Source{}
+	src := newTestSource()
 	defer func() {
 		_ = src.Teardown(ctx)
 	}()
@@ -168,8 +163,7 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 }
 
 func TestSource_NonExistentDatabase(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
-	src := &source.Source{}
+	src := newTestSource()
 	ctx := context.Background()
 	defer func() {
 		_ = src.Teardown(ctx)
@@ -188,8 +182,7 @@ func TestSource_NonExistentDatabase(t *testing.T) {
 }
 
 func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
-	src := &source.Source{}
+	src := newTestSource()
 	ctx := context.Background()
 	defer func() {
 		_ = src.Teardown(ctx)
@@ -234,9 +227,8 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 }
 
 func TestCDC_Delete(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
 	ctx := context.Background()
-	src := &source.Source{}
+	src := newTestSource()
 	defer func() {
 		_ = src.Teardown(ctx)
 	}()
@@ -285,8 +277,7 @@ func TestCDC_Delete(t *testing.T) {
 }
 
 func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
-	iterator.InitialDate = time.Now().UTC()
-	src := &source.Source{}
+	src := newTestSource()
 	ctx := context.Background()
 	err := configAndOpen(ctx, src, nil)
 	if err != nil {
@@ -314,7 +305,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	}
 	lastPosition := rec.Position
 	_ = src.Teardown(ctx)
-	src1 := &source.Source{}
+	src1 := newTestSource()
 	defer func() {
 		_ = src1.Teardown(ctx)
 	}()
