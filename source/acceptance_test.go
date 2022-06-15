@@ -29,10 +29,6 @@ import (
 	"go.uber.org/goleak"
 )
 
-var (
-	startTime time.Time
-)
-
 func TestAcceptance(t *testing.T) {
 	client, err := getClient()
 	if err != nil {
@@ -55,11 +51,10 @@ func TestAcceptance(t *testing.T) {
 			},
 			BeforeTest: func(t *testing.T) {
 				iterator.InitialDate = time.Now().UTC()
-				startTime = time.Now().UTC()
 			},
 			AfterTest: func(t *testing.T) {
 				t.Cleanup(func() {
-					err := cleanUp(client, startTime)
+					err := cleanUp(client)
 					if err != nil {
 						t.Error(err)
 					}

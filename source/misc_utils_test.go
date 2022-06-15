@@ -43,6 +43,7 @@ var (
 	ClientSecret   = os.Getenv("MARKETO_CLIENT_SECRET")
 	ClientEndpoint = os.Getenv("MARKETO_CLIENT_ENDPOINT")
 	Fields         = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
+	TestLeads      []string
 )
 
 // custom wrapper client for minimarketo client
@@ -188,6 +189,7 @@ func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 
 // generates a n number of leads and adds them to the database, also returns leads.
 func addLeads(client Client, count int) ([]map[string]interface{}, error) {
+	startTime := time.Now().UTC()
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
 	var leads []map[string]interface{}
@@ -203,7 +205,34 @@ func addLeads(client Client, count int) ([]map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = updateTestLeadsSlice(client, startTime)
+	if err != nil {
+		return nil, fmt.Errorf("error updating test leads slice: %v", err)
+	}
 	return leads, nil
+}
+
+func updateTestLeadsSlice(client Client, startTime time.Time) error {
+	token, err := client.getNextPageToken(startTime)
+	if err != nil {
+		return err
+	}
+	res, err := client.getLeadChanges(token, Fields)
+	if err != nil {
+		return err
+	}
+	if len(res.Result) == 0 {
+		return nil
+	}
+	leadResult := []map[string]interface{}{}
+	err = json.Unmarshal(res.Result, &leadResult)
+	if err != nil {
+		return err
+	}
+	for _, lead := range leadResult {
+		TestLeads = append(TestLeads, fmt.Sprint(lead["leadId"].(float64)))
+	}
+	return nil
 }
 
 // updates the leads for given LeadID
@@ -237,32 +266,12 @@ func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec sdk.
 	return
 }
 
-// deletes all leads from marketo API
-func cleanUp(client Client, sinceTime time.Time) error {
-	token, err := client.getNextPageToken(sinceTime)
-	if err != nil {
-		return err
-	}
-	res, err := client.getLeadChanges(token, Fields)
-	if err != nil {
-		return err
-	}
-	if len(res.Result) == 0 {
+// deletes all test leads from marketo API
+func cleanUp(client Client) error {
+	if len(TestLeads) == 0 {
 		return nil
 	}
-	leadResult := []map[string]interface{}{}
-	err = json.Unmarshal(res.Result, &leadResult)
-	if err != nil {
-		return err
-	}
-	var leadIDs = make([]string, 0)
-	for _, data := range leadResult {
-		leadIDs = append(leadIDs, fmt.Sprint(data["leadId"].(float64)))
-	}
-	if len(leadIDs) == 0 {
-		return nil
-	}
-	err = client.deleteLeadsByIDs(leadIDs)
+	err := client.deleteLeadsByIDs(TestLeads)
 	if err != nil {
 		return err
 	}

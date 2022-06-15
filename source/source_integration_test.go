@@ -35,13 +35,12 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().UTC()
 	testLeads, err := addLeads(client, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
@@ -77,7 +76,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
@@ -146,9 +145,8 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
@@ -202,10 +200,9 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().UTC()
 	testLeads, err := addLeads(client, 1)
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
@@ -248,9 +245,8 @@ func TestCDC_Delete(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
-	startTime := time.Now().UTC()
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
@@ -296,13 +292,12 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Now().UTC()
 	testLeads, err := addLeads(client, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		err := cleanUp(client, startTime)
+		err := cleanUp(client)
 		if err != nil {
 			t.Error(err)
 		}
