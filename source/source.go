@@ -17,6 +17,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/SpeakData/minimarketo"
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -29,9 +30,10 @@ import (
 // Source connector
 type Source struct {
 	sdk.UnimplementedSource
-	config   config.SourceConfig
-	client   marketoclient.Client
-	iterator Iterator
+	config      config.SourceConfig
+	client      marketoclient.Client
+	iterator    Iterator
+	InitialDate time.Time
 }
 
 type Iterator interface {
@@ -82,7 +84,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 		logger.Error().Stack().Err(err).Msg("Error While Creating the Marketo Client")
 		return fmt.Errorf("couldn't create the marketo client: %w", err)
 	}
-	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields)
+	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields, s.InitialDate)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error while create a combined iterator")
 		return fmt.Errorf("couldn't create a combined iterator: %w", err)

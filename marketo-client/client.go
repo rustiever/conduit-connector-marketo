@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -309,4 +310,25 @@ func WithRetry(ctx context.Context, r RetryFunc) error {
 		}
 	}
 	return nil
+}
+
+// returns filterd leads from marketo rest api
+func (c Client) FilterLeads(fileterType string, filterValues []int, fields []string, nextPageToken string) (*minimarketo.Response, error) {
+	var leads []string
+	for _, v := range filterValues {
+		leads = append(leads, strconv.Itoa(v))
+	}
+	var path string
+	path = fmt.Sprintf("/rest/v1/leads.json?filterType=%s&filterValues=%s&fields=%s", fileterType, strings.Join(leads, ","), strings.Join(fields, ","))
+	if nextPageToken != "" {
+		path = fmt.Sprintf("/rest/v1/lead/filter.json?filterType=%s&filterValues=%s&fields=%s&nextPageToken=%s", fileterType, strings.Join(leads, ","), strings.Join(fields, ","), nextPageToken)
+	}
+	response, err := c.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	if !response.Success {
+		return nil, fmt.Errorf("%+v", response.Errors)
+	}
+	return response, nil
 }

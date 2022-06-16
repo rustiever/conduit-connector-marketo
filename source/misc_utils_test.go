@@ -146,6 +146,11 @@ func (c Client) getLeadByID(id int, fields []string) (*json.RawMessage, error) {
 	return &response.Result, nil
 }
 
+// returns Test source.
+func newTestSource() *source.Source {
+	return &source.Source{InitialDate: time.Now().UTC()}
+}
+
 // returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}

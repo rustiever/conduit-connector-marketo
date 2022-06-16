@@ -24,12 +24,12 @@ import (
 
 	marketo "github.com/rustiever/conduit-connector-marketo"
 	"github.com/rustiever/conduit-connector-marketo/source"
-	"github.com/rustiever/conduit-connector-marketo/source/iterator"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
 	"go.uber.org/goleak"
 )
 
 func TestAcceptance(t *testing.T) {
+	src := &source.Source{}
 	client, err := getClient()
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +38,7 @@ func TestAcceptance(t *testing.T) {
 		Config: AcceptanceSourceTestDriverConfig{
 			Connector: sdk.Connector{
 				NewSpecification: marketo.Specification,
-				NewSource:        source.NewSource,
+				NewSource:        func() sdk.Source { return src },
 			},
 			SourceConfig: getConfigs(),
 			GoleakOptions: []goleak.Option{
@@ -50,7 +50,8 @@ func TestAcceptance(t *testing.T) {
 				goleak.IgnoreTopFunction("net/http.setRequestCancel.func4"),
 			},
 			BeforeTest: func(t *testing.T) {
-				iterator.InitialDate = time.Now().UTC()
+				// iterator.InitialDate = time.Now().UTC()
+				src.InitialDate = time.Now().UTC()
 			},
 			AfterTest: func(t *testing.T) {
 				t.Cleanup(func() {

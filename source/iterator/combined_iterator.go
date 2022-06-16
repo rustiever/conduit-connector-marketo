@@ -37,7 +37,7 @@ type CombinedIterator struct {
 
 var ErrDone = errors.New("no more records in iterator")
 
-func NewCombinedIterator(ctx context.Context, endpoint string, pollingPeriod time.Duration, client marketoclient.Client, p position.Position, fields []string) (*CombinedIterator, error) {
+func NewCombinedIterator(ctx context.Context, endpoint string, pollingPeriod time.Duration, client marketoclient.Client, p position.Position, fields []string, initialDate time.Time) (*CombinedIterator, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "NewCombinedIterator").Logger()
 	logger.Trace().Msg("Starting the NewCombinedIterator")
 
@@ -53,7 +53,7 @@ func NewCombinedIterator(ctx context.Context, endpoint string, pollingPeriod tim
 	case position.TypeSnapshot:
 		logger.Trace().Msg("Starting creating a New Snaphot iterator")
 
-		c.snapshotIterator, err = NewSnapshotIterator(ctx, endpoint, fields, client, p)
+		c.snapshotIterator, err = NewSnapshotIterator(ctx, endpoint, fields, client, p, initialDate)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while creating a new snapshot iterator")
 			return nil, err

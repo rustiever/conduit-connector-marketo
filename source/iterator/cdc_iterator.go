@@ -170,6 +170,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		logger.Error().Err(err).Msg("Error while getting the next page token")
 		return fmt.Errorf("error getting next page token %w", err)
 	}
+	c.lastModified = time.Now().UTC() // updating last modified time here to avoid missing any records in the next poll.
 	changedLeadIds, changedLeadMaps, err := c.GetChangedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the changed leads")
@@ -195,30 +196,38 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 			data:    nil,
 		}
 	}
-	for _, id := range changedLeadIds {
+	if len(changedLeadIds) == 0 {
+		return nil
+	}
+	var leads []map[string]interface{}
+	var moreResult = true
+	token = ""
+	for moreResult {
+		res, err := c.client.FilterLeads("id", changedLeadIds, c.fields, token)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error while getting the changed leads")
+			return fmt.Errorf("error getting changed leads %w", err)
+		}
+		moreResult = res.MoreResult
+		token = res.NextPageToken
+		err = json.Unmarshal(res.Result, &leads)
+		if err != nil {
+			logger.Error().Err(err).Msg("Error while unmarshalling the changed leads")
+			return fmt.Errorf("error unmarshalling changed leads %w", err)
+		}
+	}
+
+	for _, lead := range leads {
+		id := int(lead["id"].(float64))
 		if id <= lastKey && changedLeadMaps[id] == ActivityTypeIDNewLead {
 			continue
 		}
-		res, err := c.client.GetLeadByID(id, c.fields)
-		if err != nil {
-			logger.Error().Err(err).Msg("Error while getting the lead")
-			return fmt.Errorf("error getting lead %w", err)
-		}
-		dataMap := make([]map[string]interface{}, 0)
-		err = json.Unmarshal(*res, &dataMap)
-		if err != nil {
-			logger.Error().Err(err).Msg("Error while unmarshalling the lead")
-			return fmt.Errorf("error unmarshalling lead %w", err)
-		}
-		for _, data := range dataMap {
-			c.buffer <- Record{
-				id:      id,
-				deleted: false,
-				data:    data,
-			}
+		c.buffer <- Record{
+			id:      id,
+			deleted: false,
+			data:    lead,
 		}
 	}
-	c.lastModified = time.Now().UTC()
 	return nil
 }
 
@@ -275,6 +284,8 @@ func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]i
 	for k := range leadIds {
 		keys = append(keys, k)
 	}
+	// sorting helps in choosing last processed lead which handles
+	// the case when there are multiple leads with same createdAt and updatedAt time.
 	sort.Ints(keys)
 	return keys, leadIds, nil
 }
