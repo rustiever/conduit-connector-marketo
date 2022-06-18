@@ -33,7 +33,6 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// startTime := time.Now().UTC()
 	src := newTestSource()
 	testLeads, err := addLeads(client, 10)
 	if err != nil {
