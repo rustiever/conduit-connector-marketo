@@ -34,7 +34,7 @@ func TestSource_SuccessfullSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := newTestSource()
-	testLeads, err := addLeads(client, 10)
+	testLeads, err := client.addLeads(10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestSource_SnapshotRestart(t *testing.T) {
 	}
 	src := newTestSource()
 	startTime := time.Now().UTC()
-	testLeads, err := addLeads(client, 10)
+	testLeads, err := client.addLeads(10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestSource_StartCDCAfterEmptyBucket(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	testLeads, err := addLeads(client, 5)
+	testLeads, err := client.addLeads(5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testLeads, err := addLeads(client, 1)
+	testLeads, err := client.addLeads(1)
 	t.Cleanup(func() {
 		err := cleanUp(client)
 		if err != nil {
@@ -243,7 +243,7 @@ func TestCDC_Delete(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	testLeads, err := addLeads(client, 1)
+	testLeads, err := client.addLeads(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testLeads, err := addLeads(client, 3)
+	testLeads, err := client.addLeads(3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestSource_CDC_ReadRecordsInsertAfterTeardown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testLeads, err = addLeads(client, 1)
+	testLeads, err = client.addLeads(1)
 	if err != nil {
 		t.Fatal(err)
 	}

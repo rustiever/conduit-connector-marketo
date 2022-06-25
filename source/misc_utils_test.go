@@ -42,6 +42,7 @@ var (
 	ClinetID       = os.Getenv("MARKETO_CLIENT_ID")
 	ClientSecret   = os.Getenv("MARKETO_CLIENT_SECRET")
 	ClientEndpoint = os.Getenv("MARKETO_CLIENT_ENDPOINT")
+	Seed           = time.Now().UTC().UnixNano()
 	Fields         = []string{"firstName", "lastName", "email", "createdAt", "updatedAt"} // fields to be returned by the API
 	TestLeads      []string
 )
@@ -193,7 +194,7 @@ func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 }
 
 // generates a n number of leads and adds them to the database, also returns leads.
-func addLeads(client Client, count int) ([]map[string]interface{}, error) {
+func (c Client) addLeads(count int) ([]map[string]interface{}, error) {
 	startTime := time.Now().UTC()
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
@@ -206,11 +207,11 @@ func addLeads(client Client, count int) ([]map[string]interface{}, error) {
 			"email":     firstname + "@meroxa.com",
 		})
 	}
-	err := client.createOrUpdateLeads(CreateOnly, leads)
+	err := c.createOrUpdateLeads(CreateOnly, leads)
 	if err != nil {
 		return nil, err
 	}
-	err = updateTestLeadsSlice(client, startTime)
+	err = updateTestLeadsSlice(c, startTime)
 	if err != nil {
 		return nil, fmt.Errorf("error updating test leads slice: %v", err)
 	}

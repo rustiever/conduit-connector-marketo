@@ -35,31 +35,32 @@ func TestAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 	sdk.AcceptanceTest(t, AcceptanceTestDriver{
-		Config: AcceptanceSourceTestDriverConfig{
-			Connector: sdk.Connector{
-				NewSpecification: marketo.Specification,
-				NewSource:        func() sdk.Source { return src },
-			},
-			SourceConfig: getConfigs(),
-			GoleakOptions: []goleak.Option{
-				goleak.IgnoreCurrent(),
-				goleak.IgnoreTopFunction("internal/poll.runtime_pollWait"),
-				// external dependency - minimarketo
-				goleak.IgnoreTopFunction("net/http.(*persistConn).writeLoop"),
-				goleak.IgnoreTopFunction("net/http.(*persistConn).roundTrip"),
-				goleak.IgnoreTopFunction("net/http.setRequestCancel.func4"),
-			},
-			BeforeTest: func(t *testing.T) {
-				// iterator.InitialDate = time.Now().UTC()
-				src.InitialDate = time.Now().UTC()
-			},
-			AfterTest: func(t *testing.T) {
-				t.Cleanup(func() {
-					err := cleanUp(client)
-					if err != nil {
-						t.Error(err)
-					}
-				})
+		sdk.ConfigurableAcceptanceTestDriver{
+			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
+				Connector: sdk.Connector{
+					NewSpecification: marketo.Specification,
+					NewSource:        func() sdk.Source { return src },
+				},
+				SourceConfig: getConfigs(),
+				GoleakOptions: []goleak.Option{
+					goleak.IgnoreCurrent(),
+					goleak.IgnoreTopFunction("internal/poll.runtime_pollWait"),
+					// external dependency - minimarketo
+					goleak.IgnoreTopFunction("net/http.(*persistConn).writeLoop"),
+					goleak.IgnoreTopFunction("net/http.(*persistConn).roundTrip"),
+					goleak.IgnoreTopFunction("net/http.setRequestCancel.func4"),
+				},
+				BeforeTest: func(t *testing.T) {
+					src.InitialDate = time.Now().UTC()
+				},
+				AfterTest: func(t *testing.T) {
+					t.Cleanup(func() {
+						err := cleanUp(client)
+						if err != nil {
+							t.Error(err)
+						}
+					})
+				},
 			},
 		},
 	},
@@ -68,61 +69,7 @@ func TestAcceptance(t *testing.T) {
 
 // AcceptanceTestDriver implements sdk.AcceptanceTestDriver
 type AcceptanceTestDriver struct {
-	Config AcceptanceSourceTestDriverConfig
 	sdk.ConfigurableAcceptanceTestDriver
-}
-
-// AcceptanceSourceTestDriverConfig contains the configuration for
-// AcceptanceTestDriver.
-type AcceptanceSourceTestDriverConfig struct {
-	// Connector is the connector to be tested.
-	Connector sdk.Connector
-
-	// SourceConfig should be a valid config for a source connector, reading
-	// from the same location as the destination will write to.
-	SourceConfig map[string]string
-	// DestinationConfig should be a valid config for a destination connector,
-	// writing to the same location as the source will read from.
-	DestinationConfig map[string]string
-
-	// BeforeTest is executed before each acceptance test.
-	BeforeTest func(t *testing.T)
-	// AfterTest is executed after each acceptance test.
-	AfterTest func(t *testing.T)
-
-	// GoleakOptions will be applied to goleak.VerifyNone. Can be used to
-	// suppress false positive goroutine leaks.
-	GoleakOptions []goleak.Option
-}
-
-func (d AcceptanceTestDriver) DestinationConfig(*testing.T) map[string]string {
-	return map[string]string{}
-}
-func (d AcceptanceTestDriver) Connector() sdk.Connector {
-	return d.Config.Connector
-}
-
-func (d AcceptanceTestDriver) SourceConfig(*testing.T) map[string]string {
-	return d.Config.SourceConfig
-}
-
-func (d AcceptanceTestDriver) BeforeTest(t *testing.T) {
-	// before test check if the test should be skipped
-	d.Skip(t)
-
-	if d.Config.BeforeTest != nil {
-		d.Config.BeforeTest(t)
-	}
-}
-
-func (d AcceptanceTestDriver) AfterTest(t *testing.T) {
-	if d.Config.AfterTest != nil {
-		d.Config.AfterTest(t)
-	}
-}
-
-func (d AcceptanceTestDriver) GoleakOptions(_ *testing.T) []goleak.Option {
-	return d.Config.GoleakOptions
 }
 
 func (d AcceptanceTestDriver) ReadTimeout() time.Duration {
@@ -135,7 +82,7 @@ func (d AcceptanceTestDriver) WriteToSource(t *testing.T, records []sdk.Record) 
 	is := is.New(t)
 	client, err := getClient()
 	is.NoErr(err)
-	leads, err := addLeads(client, len(records))
+	leads, err := client.addLeads(len(records))
 	is.NoErr(err)
 	var emailIDs = make([]string, 0)
 	for _, v := range leads {
