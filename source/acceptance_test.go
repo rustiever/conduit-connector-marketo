@@ -61,6 +61,7 @@ func TestAcceptance(t *testing.T) {
 						}
 					})
 				},
+				ReadTimeout: time.Minute * 5,
 			},
 		},
 	},
@@ -70,10 +71,6 @@ func TestAcceptance(t *testing.T) {
 // AcceptanceTestDriver implements sdk.AcceptanceTestDriver
 type AcceptanceTestDriver struct {
 	sdk.ConfigurableAcceptanceTestDriver
-}
-
-func (d AcceptanceTestDriver) ReadTimeout() time.Duration {
-	return time.Minute * 5
 }
 
 // WriteToSource writes data for source to pull data from
