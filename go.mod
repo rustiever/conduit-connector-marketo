@@ -25,7 +25,7 @@ require (
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/rs/zerolog v1.27.0 // indirect
 	go.buf.build/library/go-grpc/conduitio/conduit-connector-protocol v1.4.1 // indirect
-	go.uber.org/goleak v1.1.12
+	go.uber.org/goleak v1.2.0
 	golang.org/x/net v0.0.0-20211108170745-6635138e15ea // indirect
 	golang.org/x/sys v0.0.0-20220405052023-b1e9470b6e64 // indirect
 	golang.org/x/text v0.3.7 // indirect
