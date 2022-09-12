@@ -214,7 +214,7 @@ func TestSource_CDC_ReadRecordsUpdate(t *testing.T) {
 	}
 	rec = nextRecord(ctx, src, t)
 	var record map[string]interface{}
-	err = json.Unmarshal(rec.Payload.Bytes(), &record)
+	err = json.Unmarshal(rec.Payload.After.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
@@ -257,7 +257,7 @@ func TestCDC_Delete(t *testing.T) {
 		t.Errorf("expected error %v, got %v", sdk.ErrBackoffRetry, err)
 	}
 	var record map[string]interface{}
-	err = json.Unmarshal(rec.Payload.Bytes(), &record)
+	err = json.Unmarshal(rec.Payload.After.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}

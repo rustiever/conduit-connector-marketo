@@ -16,15 +16,7 @@ package marketo
 
 import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	globalConfig "github.com/rustiever/conduit-connector-marketo/config"
-	sourceConfig "github.com/rustiever/conduit-connector-marketo/source/config"
 )
-
-// var Connector = sdk.Connector{
-// 	NewSpecification: specification,
-// 	NewSource:        source.NewSource,
-// 	NewDestination:   nil,
-// }
 
 // Specification returns the connector's specification.
 func Specification() sdk.Specification {
@@ -34,32 +26,5 @@ func Specification() sdk.Specification {
 		Description: "Marketo source connector connects to Marketo instance through the REST API with provided configuration, using `clientID` and `clientSecret`. Once connector is started `Configure` method is called to parse configurations and validate them. After that `Open` method is called to establish connection to Marketo instance with provided position. Once connection is established `Read` method is called which calls current iterator's `Next` method to fetch next record. `Teardown` is called when connector is stopped.",
 		Version:     "v0.1.0",
 		Author:      "Sharan",
-		SourceParams: map[string]sdk.Parameter{
-			globalConfig.ClientID: {
-				Required:    true,
-				Default:     "",
-				Description: "The client ID for the Marketo instance.",
-			},
-			globalConfig.ClientSecret: {
-				Required:    true,
-				Default:     "",
-				Description: "The client secret for the Marketo instance.",
-			},
-			globalConfig.ClientEndpoint: {
-				Required:    true,
-				Default:     "",
-				Description: "The endpoint for the Marketo instance.",
-			},
-			sourceConfig.ConfigKeyPollingPeriod: {
-				Required:    false,
-				Default:     "1m",
-				Description: "The polling period CDC mode.",
-			},
-			sourceConfig.ConfigKeyFields: {
-				Required:    false,
-				Default:     "id, createdAt, updatedAt, firstName, lastName, email",
-				Description: "The fields to be pulled from Marketo",
-			},
-		},
 	}
 }

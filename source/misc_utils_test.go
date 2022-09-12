@@ -178,7 +178,7 @@ func getClient() (Client, error) {
 // asserts actual record against expected lead.
 func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
 	var record map[string]interface{}
-	err := json.Unmarshal(actual.Payload.Bytes(), &record)
+	err := json.Unmarshal(actual.Payload.After.Bytes(), &record)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 	}
