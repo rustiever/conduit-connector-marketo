@@ -17,13 +17,8 @@ package main
 import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	marketo "github.com/rustiever/conduit-connector-marketo"
-	"github.com/rustiever/conduit-connector-marketo/source"
 )
 
 func main() {
-	sdk.Serve(sdk.Connector{
-		NewSpecification: marketo.Specification,
-		NewSource:        source.NewSource,
-		NewDestination:   nil,
-	})
+	sdk.Serve(marketo.Connector)
 }
