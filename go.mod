@@ -1,6 +1,6 @@
 module github.com/rustiever/conduit-connector-marketo
 
-go 1.17
+go 1.18
 
 require (
 	github.com/SpeakData/minimarketo v0.0.0-20170821092521-29339e452f44
@@ -29,7 +29,6 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/rs/zerolog v1.28.0 // indirect
-	go.buf.build/library/go-grpc/conduitio/conduit-connector-protocol v1.4.1 // indirect
 	go.uber.org/goleak v1.2.0
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 	golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2 // indirect
