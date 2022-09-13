@@ -44,7 +44,7 @@ type Iterator interface {
 }
 
 func NewSource() sdk.Source {
-	return &Source{}
+	return sdk.SourceWithMiddleware(&Source{}, sdk.DefaultSourceMiddleware()...)
 }
 
 // Parameters is a map of named Parameters that describe how to configure the Source.

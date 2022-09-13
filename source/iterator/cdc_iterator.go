@@ -151,8 +151,14 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 	metadata.SetCreatedAt(createdAt)
 	metadata["updatedAt"] = strconv.FormatInt(updatedAt.UnixNano(), 10)
 
-	return sdk.Util.Source.NewRecordUpdate(
-		position, metadata, sdk.RawData(key), nil, sdk.StructuredData(r.data),
+	if createdAt != updatedAt {
+		return sdk.Util.Source.NewRecordUpdate(
+			position, metadata, sdk.RawData(key), nil, sdk.StructuredData(r.data),
+		), nil
+	}
+
+	return sdk.Util.Source.NewRecordCreate(
+		position, metadata, sdk.RawData(key), sdk.StructuredData(r.data),
 	), nil
 }
 
