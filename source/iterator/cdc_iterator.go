@@ -124,14 +124,11 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 		if err != nil {
 			return sdk.Record{}, err
 		}
-		return sdk.Record{
-			Key:      sdk.RawData(key),
-			Position: pos,
-			Metadata: map[string]string{
-				"action": "delete",
-			},
-			CreatedAt: time.Now().UTC(),
-		}, nil
+
+		metadata := make(sdk.Metadata)
+		metadata.SetCreatedAt(time.Now())
+
+		return sdk.Util.Source.NewRecordDelete(pos, metadata, sdk.RawData(key)), nil
 	}
 	createdAt, err := time.Parse(time.RFC3339, fmt.Sprintf("%s", r.data["createdAt"]))
 	if err != nil {
@@ -148,17 +145,21 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 		UpdatedAt: updatedAt,
 	}.ToRecordPosition()
 	r.data["id"] = key
-	rec := sdk.Record{
-		Payload: sdk.StructuredData(r.data),
-		Metadata: map[string]string{
-			"id":        key,
-			"createdAt": createdAt.UTC().Format(time.RFC3339),
-			"updatedAt": updatedAt.UTC().Format(time.RFC3339),
-		},
-		Position: position,
-		Key:      sdk.RawData(key),
+
+	metadata := make(sdk.Metadata)
+	metadata["id"] = key
+	metadata.SetCreatedAt(createdAt)
+	metadata["updatedAt"] = strconv.FormatInt(updatedAt.UnixNano(), 10)
+
+	if createdAt != updatedAt {
+		return sdk.Util.Source.NewRecordUpdate(
+			position, metadata, sdk.RawData(key), nil, sdk.StructuredData(r.data),
+		), nil
 	}
-	return rec, nil
+
+	return sdk.Util.Source.NewRecordCreate(
+		position, metadata, sdk.RawData(key), sdk.StructuredData(r.data),
+	), nil
 }
 
 // fetches latest leads from marketo and stores them in the buffer.

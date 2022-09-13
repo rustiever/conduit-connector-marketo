@@ -21,6 +21,7 @@ import (
 
 	"github.com/SpeakData/minimarketo"
 	sdk "github.com/conduitio/conduit-connector-sdk"
+	globalConfig "github.com/rustiever/conduit-connector-marketo/config"
 	marketoclient "github.com/rustiever/conduit-connector-marketo/marketo-client"
 	"github.com/rustiever/conduit-connector-marketo/source/config"
 	"github.com/rustiever/conduit-connector-marketo/source/iterator"
@@ -43,7 +44,38 @@ type Iterator interface {
 }
 
 func NewSource() sdk.Source {
-	return &Source{}
+	return sdk.SourceWithMiddleware(&Source{}, sdk.DefaultSourceMiddleware()...)
+}
+
+// Parameters is a map of named Parameters that describe how to configure the Source.
+func (s *Source) Parameters() map[string]sdk.Parameter {
+	return map[string]sdk.Parameter{
+		globalConfig.ClientID: {
+			Required:    true,
+			Default:     "",
+			Description: "The client ID for the Marketo instance.",
+		},
+		globalConfig.ClientSecret: {
+			Required:    true,
+			Default:     "",
+			Description: "The client secret for the Marketo instance.",
+		},
+		globalConfig.ClientEndpoint: {
+			Required:    true,
+			Default:     "",
+			Description: "The endpoint for the Marketo instance.",
+		},
+		config.ConfigKeyPollingPeriod: {
+			Required:    false,
+			Default:     "1m",
+			Description: "The polling period CDC mode.",
+		},
+		config.ConfigKeyFields: {
+			Required:    false,
+			Default:     "id, createdAt, updatedAt, firstName, lastName, email",
+			Description: "The fields to be pulled from Marketo",
+		},
+	}
 }
 
 // Configure parses and stores the configurations

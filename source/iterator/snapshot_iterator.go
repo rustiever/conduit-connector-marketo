@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -312,18 +313,15 @@ func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (sd
 		logger.Err(err).Msg("Error while converting position to record position")
 		return sdk.Record{}, fmt.Errorf("error converting position to record position %w", err)
 	}
-	rec := sdk.Record{
-		Payload: sdk.StructuredData(dataMap),
-		Metadata: map[string]string{
-			"id":        position.Key,
-			"createdAt": createdAt.Format(time.RFC3339),
-			"updatedAt": updatedAt.Format(time.RFC3339),
-		},
-		Position: pos,
-		Key:      sdk.RawData(position.Key),
-	}
 
-	return rec, nil
+	metadata := make(sdk.Metadata)
+	metadata["id"] = position.Key
+	metadata.SetCreatedAt(createdAt)
+	metadata["updatedAt"] = strconv.FormatInt(updatedAt.UnixNano(), 10)
+
+	return sdk.Util.Source.NewRecordSnapshot(
+		pos, metadata, sdk.RawData(position.Key), sdk.StructuredData(dataMap),
+	), nil
 }
 
 // returns Last date from the supplied position.if p is zero value, then it queries least date from the database.

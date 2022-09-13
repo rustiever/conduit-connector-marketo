@@ -11,11 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package source_test
 
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -144,16 +146,13 @@ func prepareRecord(data map[string]interface{}) (sdk.Record, error) {
 	if err != nil {
 		return sdk.Record{}, fmt.Errorf("error converting position to record position %w", err)
 	}
-	rec := sdk.Record{
-		Payload: sdk.StructuredData(data),
-		Metadata: map[string]string{
-			"id":        position.Key,
-			"createdAt": createdAt.Format(time.RFC3339),
-			"updatedAt": updatedAt.Format(time.RFC3339),
-		},
-		Position: pos,
-		Key:      sdk.RawData(position.Key),
-	}
 
-	return rec, nil
+	metadata := make(sdk.Metadata)
+	metadata["id"] = position.Key
+	metadata.SetCreatedAt(createdAt)
+	metadata["updatedAt"] = strconv.FormatInt(updatedAt.UnixNano(), 10)
+
+	return sdk.Util.Source.NewRecordCreate(
+		pos, metadata, sdk.RawData(position.Key), sdk.StructuredData(data),
+	), nil
 }
