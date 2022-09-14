@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/SpeakData/minimarketo v0.0.0-20170821092521-29339e452f44
-	github.com/conduitio/conduit-connector-sdk v0.2.1-0.20220907174025-4652ba056469
+	github.com/conduitio/conduit-connector-sdk v0.2.1-0.20220908065345-c14f70ebbd64
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/jpillora/backoff v1.0.0
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
@@ -31,9 +31,9 @@ require (
 	github.com/rs/zerolog v1.28.0 // indirect
 	go.uber.org/goleak v1.2.0
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
-	golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2 // indirect
+	golang.org/x/sys v0.0.0-20220913175220-63ea55921009 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220909194730-69f6226f97e5 // indirect
+	google.golang.org/genproto v0.0.0-20220913154956-18f8339a66a5 // indirect
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
