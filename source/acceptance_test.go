@@ -52,9 +52,6 @@ func TestAcceptance(t *testing.T) {
 					goleak.IgnoreTopFunction("net/http.(*persistConn).roundTrip"),
 					goleak.IgnoreTopFunction("net/http.setRequestCancel.func4"),
 				},
-				BeforeTest: func(t *testing.T) {
-					src.InitialDate = time.Now().UTC()
-				},
 				AfterTest: func(t *testing.T) {
 					t.Cleanup(func() {
 						err := cleanUp(client)

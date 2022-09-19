@@ -108,6 +108,37 @@ func TestParseGlobalConfig(t *testing.T) {
 				Fields:        []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
 			},
 		},
+		{
+			name:    "Invalid snapshotInitialDate",
+			wantErr: true,
+			in: map[string]string{
+				"clientID":            "client_id",
+				"clientSecret":        "client_secret",
+				"clientEndpoint":      "https://xxx-xxx-xxx.mktorest.com",
+				"snapshotInitialDate": "wrong",
+			},
+			expectedCon: SourceConfig{},
+		},
+		{
+			name:    "Custom snapshotInitialDate",
+			wantErr: false,
+			in: map[string]string{
+				"clientID":            "client_id",
+				"clientSecret":        "client_secret",
+				"clientEndpoint":      "https://xxx-xxx-xxx.mktorest.com",
+				"snapshotInitialDate": "2022-09-10T00:00:00Z",
+			},
+			expectedCon: SourceConfig{
+				Config: globalConfig.Config{
+					ClientID:       "client_id",
+					ClientSecret:   "client_secret",
+					ClientEndpoint: "https://xxx-xxx-xxx.mktorest.com",
+				},
+				PollingPeriod:       time.Minute,
+				SnapshotInitialDate: time.Date(2022, time.September, 10, 0, 0, 0, 0, time.UTC),
+				Fields:              []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"},
+			},
+		},
 	}
 
 	for _, tt := range configTests {
