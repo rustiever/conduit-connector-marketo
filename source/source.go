@@ -17,7 +17,6 @@ package source
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/SpeakData/minimarketo"
 	sdk "github.com/conduitio/conduit-connector-sdk"
@@ -31,10 +30,9 @@ import (
 // Source connector
 type Source struct {
 	sdk.UnimplementedSource
-	config      config.SourceConfig
-	client      marketoclient.Client
-	iterator    Iterator
-	InitialDate time.Time
+	config   config.SourceConfig
+	client   marketoclient.Client
+	iterator Iterator
 }
 
 type Iterator interface {
@@ -65,12 +63,17 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 			Default:     "",
 			Description: "The endpoint for the Marketo instance.",
 		},
-		config.ConfigKeyPollingPeriod: {
+		config.KeyPollingPeriod: {
 			Required:    false,
 			Default:     "1m",
 			Description: "The polling period CDC mode.",
 		},
-		config.ConfigKeyFields: {
+		config.KeySnapshotInitialDate: {
+			Required:    false,
+			Default:     "Creation date of the oldest record.",
+			Description: "The date from which the snapshot iterator initially starts getting records.",
+		},
+		config.KeyFields: {
 			Required:    false,
 			Default:     "id, createdAt, updatedAt, firstName, lastName, email",
 			Description: "The fields to be pulled from Marketo",
@@ -116,7 +119,7 @@ func (s *Source) Open(ctx context.Context, pos sdk.Position) error {
 		logger.Error().Stack().Err(err).Msg("Error While Creating the Marketo Client")
 		return fmt.Errorf("couldn't create the marketo client: %w", err)
 	}
-	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields, s.InitialDate)
+	s.iterator, err = iterator.NewCombinedIterator(ctx, s.config.ClientEndpoint, s.config.PollingPeriod, s.client, p, s.config.Fields, s.config.SnapshotInitialDate)
 	if err != nil {
 		logger.Error().Stack().Err(err).Msg("Error while create a combined iterator")
 		return fmt.Errorf("couldn't create a combined iterator: %w", err)

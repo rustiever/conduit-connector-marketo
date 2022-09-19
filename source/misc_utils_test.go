@@ -149,7 +149,7 @@ func (c Client) getLeadByID(id int, fields []string) (*json.RawMessage, error) {
 
 // returns Test source.
 func newTestSource() *source.Source {
-	return &source.Source{InitialDate: time.Now().UTC()}
+	return &source.Source{}
 }
 
 // returns configs for testing.
@@ -158,7 +158,8 @@ func getConfigs() map[string]string {
 	cfg[config.ClientID] = ClinetID
 	cfg[config.ClientSecret] = ClientSecret
 	cfg[config.ClientEndpoint] = ClientEndpoint
-	cfg[sourceConfig.ConfigKeyPollingPeriod] = "10s"
+	cfg[sourceConfig.KeyPollingPeriod] = "10s"
+	cfg[sourceConfig.KeySnapshotInitialDate] = time.Now().UTC().Format(time.RFC3339)
 	return cfg
 }
 
