@@ -63,3 +63,4 @@ The Docker compose file at `test/docker-compose.yml` can be used to run the requ
 - Concurrency Limit: Maximum of 10 concurrent API calls.
 - Rate Limit: API access per instance limited to 100 calls per 20 seconds.
 - Daily Quota: Subscriptions are allocated 50,000 API calls per day (which resets daily at 12:00AM CST). You can increase your daily quota through your account manager.
+- The connector is able to send record's `Key` as `sdk.RawData` only.
