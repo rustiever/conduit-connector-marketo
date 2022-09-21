@@ -1,7 +1,9 @@
 .PHONY: build test test-integration
 
+VERSION=$(shell git describe --tags --dirty --always)
+
 build:
-	go build -o marketo cmd/marketo/main.go
+	go build -ldflags "-X 'github.com/conduitio-labs/conduit-connector-marketo.version=${VERSION}'" -o conduit-connector-marketo cmd/connector/main.go
 
 test:
 	# -p 1 ensures that tests run one at a time.
