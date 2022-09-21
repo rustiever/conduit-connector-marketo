@@ -18,13 +18,18 @@ import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
+// version is set during the build process (i.e. the Makefile).
+// It follows Go's convention for module version, where the version
+// starts with the letter v, followed by a semantic version.
+var version = "v0.0.0-dev"
+
 // Specification returns the connector's specification.
 func Specification() sdk.Specification {
 	return sdk.Specification{
 		Name:        "marketo",
 		Summary:     "A Adobe Marketo source connector, which syncs Leads from a given Marketo instance.",
 		Description: "Marketo source connector connects to Marketo instance through the REST API with provided configuration, using `clientID` and `clientSecret`. Once connector is started `Configure` method is called to parse configurations and validate them. After that `Open` method is called to establish connection to Marketo instance with provided position. Once connection is established `Read` method is called which calls current iterator's `Next` method to fetch next record. `Teardown` is called when connector is stopped.",
-		Version:     "v0.1.0",
+		Version:     version,
 		Author:      "Sharan",
 	}
 }
