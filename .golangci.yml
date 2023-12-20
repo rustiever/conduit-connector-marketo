@@ -20,7 +20,7 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - deadcode
+    # deadcode
     # - depguard
     - dogsled
     - durationcheck
@@ -41,7 +41,7 @@ linters:
     # - godot
     - gofmt
     # - gofumpt
-    - goheader
+    # goheader
     - goimports
     - revive
     # - gomnd
