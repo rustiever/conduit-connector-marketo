@@ -151,7 +151,7 @@ func (s *Source) Ack(ctx context.Context, pos sdk.Position) error {
 	return nil
 }
 
-func (s *Source) Teardown(ctx context.Context) error {
+func (s *Source) Teardown(_ context.Context) error {
 	if s.iterator != nil {
 		s.iterator.Stop()
 	}

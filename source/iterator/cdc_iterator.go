@@ -233,7 +233,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 }
 
 // returns list of deleted leads ids.
-func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]int, error) {
+func (c *CDCIterator) GetDeletedLeadsIDs(_ context.Context, token string) ([]int, error) {
 	response, err := c.client.GetDeletedLeads(token)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]i
 }
 
 // returns list of changed leads ids.
-func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, map[int]int, error) {
+func (c *CDCIterator) GetChangedLeadsIDs(_ context.Context, token string) ([]int, map[int]int, error) {
 	var leadIds = make(map[int]int) // using map to avoid duplicates
 	moreResult := true
 	for moreResult {
