@@ -29,7 +29,7 @@ import (
 	"github.com/rustiever/conduit-connector-marketo/source/position"
 )
 
-// Source connector
+// Source connector.
 type Source struct {
 	sdk.UnimplementedSource
 	config   config.SourceConfig
@@ -53,7 +53,7 @@ func (s *Source) Parameters() commonsConfig.Parameters {
 }
 
 // Configure parses and stores the configurations
-// returns an error in case of invalid config
+// returns an error in case of invalid config.
 func (s *Source) Configure(ctx context.Context, cfg commonsConfig.Config) error {
 	logger := sdk.Logger(ctx).With().Str("Class", "Source").Str("Method", "Configure").Logger()
 	logger.Trace().Msg("Starting Configuring the Source Connector...")
@@ -71,7 +71,7 @@ func (s *Source) Configure(ctx context.Context, cfg commonsConfig.Config) error 
 	return err
 }
 
-// Open prepare the plugin to start sending records from the given position
+// Open prepare the plugin to start sending records from the given position.
 func (s *Source) Open(ctx context.Context, pos opencdc.Position) error {
 	logger := sdk.Logger(ctx).With().Str("Class", "Source").Str("Method", "Open").Logger()
 	logger.Trace().Msg("Starting Open the Source Connector...")
@@ -111,7 +111,7 @@ func (s *Source) Open(ctx context.Context, pos opencdc.Position) error {
 	return nil
 }
 
-// Read gets the next record from the Marketo Instance
+// Read gets the next record from the Marketo Instance.
 func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 	logger := sdk.Logger(ctx).With().Str("Class", "Source").Str("Method", "Read").Logger()
 	logger.Trace().Msg("Starting Read the Source Connector...")
@@ -134,7 +134,7 @@ func (s *Source) Ack(ctx context.Context, pos opencdc.Position) error {
 	return nil
 }
 
-func (s *Source) Teardown(ctx context.Context) error {
+func (s *Source) Teardown(_ context.Context) error {
 	if s.iterator != nil {
 		s.iterator.Stop()
 	}

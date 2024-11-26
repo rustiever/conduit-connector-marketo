@@ -14,7 +14,7 @@
 
 package config
 
-// Config represents configuration needed for Marketo
+// Config represents configuration needed for Marketo.
 type Config struct {
 	// ClientID is the Client ID for Marketo Instance.
 	ClientID string `json:"clientID" validate:"required"`

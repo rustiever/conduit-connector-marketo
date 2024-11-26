@@ -32,7 +32,7 @@ import (
 	sourceConfig "github.com/rustiever/conduit-connector-marketo/source/config"
 )
 
-// actionTypes for createOrUpdate API endpoint
+// actionTypes for createOrUpdate API endpoint.
 const (
 	CreateOnly = "createOnly"
 	UpdateOnly = "updateOnly"
@@ -47,7 +47,7 @@ var (
 	TestLeads      []string
 )
 
-// custom wrapper client for minimarketo client
+// custom wrapper client for minimarketo client.
 type Client struct {
 	minimarketo.Client
 }
@@ -214,7 +214,7 @@ func (c Client) addLeads(count int) ([]map[string]interface{}, error) {
 	}
 	err = updateTestLeadsSlice(c, startTime)
 	if err != nil {
-		return nil, fmt.Errorf("error updating test leads slice: %v", err)
+		return nil, fmt.Errorf("error updating test leads slice: %w", err)
 	}
 	return leads, nil
 }
@@ -242,7 +242,7 @@ func updateTestLeadsSlice(client Client, startTime time.Time) error {
 	return nil
 }
 
-// updates the leads for given LeadID
+// updates the leads for given LeadID.
 func updateLeads(client Client, emailID string) (map[string]interface{}, error) {
 	seed := time.Now().UTC().UnixNano()
 	nameGenerator := namegenerator.NewNameGenerator(seed)
@@ -257,7 +257,7 @@ func updateLeads(client Client, emailID string) (map[string]interface{}, error) 
 	return leads, nil
 }
 
-// gets next record from the source
+// gets next record from the source.
 func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec opencdc.Record) {
 	var err error
 	for {
@@ -273,7 +273,7 @@ func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec open
 	return
 }
 
-// deletes all test leads from marketo API
+// deletes all test leads from marketo API.
 func cleanUp(client Client) error {
 	if len(TestLeads) == 0 {
 		return nil
@@ -285,7 +285,7 @@ func cleanUp(client Client) error {
 	return nil
 }
 
-// configures the source with the given configs and establishes a connection to Marketo
+// configures the source with the given configs and establishes a connection to Marketo.
 func configAndOpen(ctx context.Context, s *source.Source, pos opencdc.Position) error {
 	err := s.Configure(ctx, getConfigs())
 	if err != nil {

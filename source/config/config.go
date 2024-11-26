@@ -22,13 +22,13 @@ import (
 
 const (
 	// DefaultPollingPeriod is the value assumed for the pooling period when the
-	// config omits the polling period parameter
+	// config omits the polling period parameter.
 	DefaultPollingPeriod = time.Minute
 )
 
 //go:generate paramgen -output=paramgen.go SourceConfig
 
-// SourceConfig represents source configuration with GCS configurations
+// SourceConfig represents source configuration with GCS configurations.
 type SourceConfig struct {
 	config.Config
 	// PollingPeriod is the polling time for CDC mode. Less than 10s is not recommended.

@@ -38,7 +38,7 @@ const (
 	MaximumHoursGap = 744 // 31 days in Hours
 )
 
-// to handle snapshot iterator
+// to handle snapshot iterator.
 type SnapshotIterator struct {
 	client          *marketoclient.Client
 	initialDate     time.Time        // holds the initial date of the snapshot
@@ -126,7 +126,7 @@ func (s *SnapshotIterator) Next(ctx context.Context) (opencdc.Record, error) {
 		err := s.stop(ctx)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while stopping the SnapshotIterator")
-			return opencdc.Record{}, fmt.Errorf("%v;error while stopping the SnapshotIterator: %w", ctx.Err(), err)
+			return opencdc.Record{}, fmt.Errorf("%w;error while stopping the SnapshotIterator: %w", ctx.Err(), err)
 		}
 		return opencdc.Record{}, fmt.Errorf("context is done: %w", ctx.Err())
 	case e1 := <-s.errChan:
@@ -135,7 +135,7 @@ func (s *SnapshotIterator) Next(ctx context.Context) (opencdc.Record, error) {
 		e2 := s.stop(ctx)
 		if e2 != nil {
 			logger.Error().Err(e2).Msg("Error while stopping the SnapshotIterator")
-			return opencdc.Record{}, fmt.Errorf("%w; error while stopping snapshot iterator: %v", e1, e2)
+			return opencdc.Record{}, fmt.Errorf("%w; error while stopping snapshot iterator: %w", e1, e2)
 		}
 		return opencdc.Record{}, fmt.Errorf("error occured during pulling or flushing records from marketo to buffer: %w", e1)
 	case data, ok := <-s.data:
@@ -289,7 +289,7 @@ func (s *SnapshotIterator) getLeads(ctx context.Context, startDate, endDate time
 func (s *SnapshotIterator) prepareRecord(ctx context.Context, data []string) (opencdc.Record, error) {
 	logger := sdk.Logger(ctx).With().Str("Method", "prepareRecord").Logger()
 	logger.Trace().Msg("Starting the prepareRecord method")
-	var dataMap = marketoclient.GetDataMap(s.fields, data)
+	dataMap := marketoclient.GetDataMap(s.fields, data)
 	createdAt, err := time.Parse(time.RFC3339, fmt.Sprintf("%s", dataMap["createdAt"]))
 	if err != nil {
 		logger.Err(err).Msg("Error while parsing createdAt")
@@ -332,7 +332,7 @@ func (s *SnapshotIterator) getLastProcessedDate(ctx context.Context, p position.
 
 	// marketo api handles records at seconds level. When we start snapshot iterator with same last time,
 	// there is a chance of getting same records again. So we need to add 1 second to the last time.
-	var date = p.CreatedAt.Add(1 * time.Second)
+	date := p.CreatedAt.Add(1 * time.Second)
 	var err error
 	if reflect.ValueOf(p).IsZero() {
 		date, err = s.getLeastDate(ctx, *s.client)

@@ -68,12 +68,12 @@ func TestAcceptance(t *testing.T) {
 	)
 }
 
-// AcceptanceTestDriver implements sdk.AcceptanceTestDriver
+// AcceptanceTestDriver implements sdk.AcceptanceTestDriver.
 type AcceptanceTestDriver struct {
 	sdk.ConfigurableAcceptanceTestDriver
 }
 
-// WriteToSource writes data for source to pull data from
+// WriteToSource writes data for source to pull data from.
 func (d AcceptanceTestDriver) WriteToSource(t *testing.T, records []opencdc.Record) []opencdc.Record {
 	var err error
 	is := is.New(t)
@@ -81,7 +81,7 @@ func (d AcceptanceTestDriver) WriteToSource(t *testing.T, records []opencdc.Reco
 	is.NoErr(err)
 	leads, err := client.addLeads(len(records))
 	is.NoErr(err)
-	var emailIDs = make([]string, 0)
+	emailIDs := make([]string, 0)
 	for _, v := range leads {
 		emailIDs = append(emailIDs, v["email"].(string))
 	}
@@ -103,7 +103,7 @@ func writeRecords(client Client, emailIDs []string) ([]opencdc.Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	var records = make([]opencdc.Record, 0)
+	records := make([]opencdc.Record, 0)
 	for _, v := range record {
 		id := int(v["id"].(float64))
 		data, err = client.getLeadByID(id, Fields)

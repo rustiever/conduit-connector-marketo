@@ -37,7 +37,7 @@ const (
 	ActivityTypeIDChangeDataValue = 13
 )
 
-// custom Record type to handle CDC
+// custom Record type to handle CDC.
 type Record struct {
 	id      int
 	data    map[string]interface{}
@@ -70,7 +70,7 @@ func NewCDCIterator(ctx context.Context, client *marketoclient.Client, pollingPe
 	return iterator, nil
 }
 
-// poll is the main goRoutine that polls marketo for new leads
+// poll is the main goRoutine that polls marketo for new leads.
 func (c *CDCIterator) poll(ctx context.Context) error {
 	defer close(c.buffer)
 	for {
@@ -111,7 +111,7 @@ func (c *CDCIterator) Stop() {
 	c.tomb.Kill(errors.New("cdc iterator is stopped"))
 }
 
-// returns record in the format of opencdc.Record
+// returns record in the format of opencdc.Record.
 func (c *CDCIterator) prepareRecord(r Record) (opencdc.Record, error) {
 	key := strconv.Itoa(r.id)
 	if r.deleted {
@@ -173,17 +173,17 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 		return fmt.Errorf("error getting next page token %w", err)
 	}
 	c.lastModified = time.Now().UTC() // updating last modified time here to avoid missing any records in the next poll.
-	changedLeadIds, changedLeadMaps, err := c.GetChangedLeadsIDs(ctx, token)
+	changedLeadIDs, changedLeadMaps, err := c.GetChangedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the changed leads")
 		return fmt.Errorf("error getting changed leads %w", err)
 	}
-	deletedLeadIds, err := c.GetDeletedLeadsIDs(ctx, token)
+	deletedLeadIDs, err := c.GetDeletedLeadsIDs(ctx, token)
 	if err != nil {
 		logger.Error().Err(err).Msg("Error while getting the deleted leads")
 		return fmt.Errorf("error getting deleted leads %w", err)
 	}
-	var lastKey = -1 // -1 indicates no last key, so proccess all leads
+	lastKey := -1 // -1 indicates no last key, so proccess all leads
 	if c.lastEntryKey != "" {
 		lastKey, err = strconv.Atoi(c.lastEntryKey)
 		if err != nil {
@@ -191,21 +191,21 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 			return fmt.Errorf("error parsing last entry key %w", err)
 		}
 	}
-	for _, id := range deletedLeadIds {
+	for _, id := range deletedLeadIDs {
 		c.buffer <- Record{
 			id:      id,
 			deleted: true,
 			data:    nil,
 		}
 	}
-	if len(changedLeadIds) == 0 {
+	if len(changedLeadIDs) == 0 {
 		return nil
 	}
 	var leads []map[string]interface{}
-	var moreResult = true
+	moreResult := true
 	token = ""
 	for moreResult {
-		res, err := c.client.FilterLeads("id", changedLeadIds, c.fields, token)
+		res, err := c.client.FilterLeads("id", changedLeadIDs, c.fields, token)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error while getting the changed leads")
 			return fmt.Errorf("error getting changed leads %w", err)
@@ -234,7 +234,7 @@ func (c *CDCIterator) flushLatestLeads(ctx context.Context) error {
 }
 
 // returns list of deleted leads ids.
-func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]int, error) {
+func (c *CDCIterator) GetDeletedLeadsIDs(_ context.Context, token string) ([]int, error) {
 	response, err := c.client.GetDeletedLeads(token)
 	if err != nil {
 		return nil, err
@@ -247,17 +247,17 @@ func (c *CDCIterator) GetDeletedLeadsIDs(ctx context.Context, token string) ([]i
 	if err != nil {
 		return nil, err
 	}
-	var leadIds = make([]int, 0)
+	leadIDs := make([]int, 0)
 	for _, deletedLeadResult := range deletedLeadResults {
-		var id = int(deletedLeadResult["leadId"].(float64))
-		leadIds = append(leadIds, id)
+		id := int(deletedLeadResult["leadId"].(float64))
+		leadIDs = append(leadIDs, id)
 	}
-	return leadIds, nil
+	return leadIDs, nil
 }
 
 // returns list of changed leads ids.
-func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]int, map[int]int, error) {
-	var leadIds = make(map[int]int) // using map to avoid duplicates
+func (c *CDCIterator) GetChangedLeadsIDs(_ context.Context, token string) ([]int, map[int]int, error) {
+	leadIDs := make(map[int]int) // using map to avoid duplicates
 	moreResult := true
 	for moreResult {
 		response, err := c.client.GetLeadChanges(token, c.fields)
@@ -275,19 +275,19 @@ func (c *CDCIterator) GetChangedLeadsIDs(ctx context.Context, token string) ([]i
 			return nil, nil, err
 		}
 		for _, leadChangeResult := range leadChangeResults {
-			var activityTypeID = leadChangeResult["activityTypeId"].(float64)
+			activityTypeID := leadChangeResult["activityTypeId"].(float64)
 			if activityTypeID == ActivityTypeIDNewLead || activityTypeID == ActivityTypeIDChangeDataValue {
-				var id = int(leadChangeResult["leadId"].(float64))
-				leadIds[id] = int(activityTypeID)
+				id := int(leadChangeResult["leadId"].(float64))
+				leadIDs[id] = int(activityTypeID)
 			}
 		}
 	}
-	keys := make([]int, 0, len(leadIds))
-	for k := range leadIds {
+	keys := make([]int, 0, len(leadIDs))
+	for k := range leadIDs {
 		keys = append(keys, k)
 	}
 	// sorting helps in choosing last processed lead which handles
 	// the case when there are multiple leads with same createdAt and updatedAt time.
 	sort.Ints(keys)
-	return keys, leadIds, nil
+	return keys, leadIDs, nil
 }

@@ -22,7 +22,7 @@ import (
 )
 
 func Test_ParseRecordPosition(t *testing.T) {
-	var positionTests = []struct {
+	positionTests := []struct {
 		name    string
 		wantErr bool
 		in      opencdc.Position

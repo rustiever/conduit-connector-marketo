@@ -29,10 +29,10 @@ const (
 type IteratorType int
 
 type Position struct {
-	Key       string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Type      IteratorType
+	Key       string       `json:"Key"`
+	CreatedAt time.Time    `json:"CreatedAt"`
+	UpdatedAt time.Time    `json:"UpdatedAt"`
+	Type      IteratorType `json:"Type"`
 }
 
 func (p Position) ToRecordPosition() (opencdc.Position, error) {
