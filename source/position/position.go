@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"time"
 
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 )
 
 const (
@@ -35,11 +35,11 @@ type Position struct {
 	Type      IteratorType
 }
 
-func (p Position) ToRecordPosition() (sdk.Position, error) {
+func (p Position) ToRecordPosition() (opencdc.Position, error) {
 	return json.Marshal(p)
 }
 
-func ParseRecordPosition(p sdk.Position) (Position, error) {
+func ParseRecordPosition(p opencdc.Position) (Position, error) {
 	if p == nil {
 		// empty Position would have the fields with their default values
 		return Position{}, nil
@@ -52,10 +52,10 @@ func ParseRecordPosition(p sdk.Position) (Position, error) {
 	return pos, nil
 }
 
-func ConvertToCDCPosition(p sdk.Position) (sdk.Position, error) {
+func ConvertToCDCPosition(p opencdc.Position) (opencdc.Position, error) {
 	cdcPos, err := ParseRecordPosition(p)
 	if err != nil {
-		return sdk.Position{}, err
+		return opencdc.Position{}, err
 	}
 	cdcPos.Type = TypeCDC
 	return cdcPos.ToRecordPosition()

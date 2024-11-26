@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/SpeakData/minimarketo"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/goombaio/namegenerator"
-	"github.com/rustiever/conduit-connector-marketo/config"
 	"github.com/rustiever/conduit-connector-marketo/source"
 	sourceConfig "github.com/rustiever/conduit-connector-marketo/source/config"
 )
@@ -155,11 +155,11 @@ func newTestSource() *source.Source {
 // returns configs for testing.
 func getConfigs() map[string]string {
 	cfg := map[string]string{}
-	cfg[config.ClientID] = ClinetID
-	cfg[config.ClientSecret] = ClientSecret
-	cfg[config.ClientEndpoint] = ClientEndpoint
-	cfg[sourceConfig.KeyPollingPeriod] = "10s"
-	cfg[sourceConfig.KeySnapshotInitialDate] = time.Now().UTC().Format(time.RFC3339)
+	cfg[sourceConfig.SourceConfigClientID] = ClinetID
+	cfg[sourceConfig.SourceConfigClientSecret] = ClientSecret
+	cfg[sourceConfig.SourceConfigClientEndpoint] = ClientEndpoint
+	cfg[sourceConfig.SourceConfigPollingPeriod] = "10s"
+	cfg[sourceConfig.SourceConfigSnapshotInitialDate] = time.Now().UTC().Format(time.RFC3339)
 	return cfg
 }
 
@@ -177,7 +177,7 @@ func getClient() (Client, error) {
 }
 
 // asserts actual record against expected lead.
-func assert(t *testing.T, actual *sdk.Record, expected map[string]interface{}) {
+func assert(t *testing.T, actual *opencdc.Record, expected map[string]interface{}) {
 	var record map[string]interface{}
 	err := json.Unmarshal(actual.Payload.After.Bytes(), &record)
 	if err != nil {
@@ -258,7 +258,7 @@ func updateLeads(client Client, emailID string) (map[string]interface{}, error) 
 }
 
 // gets next record from the source
-func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec sdk.Record) {
+func nextRecord(ctx context.Context, src *source.Source, t *testing.T) (rec opencdc.Record) {
 	var err error
 	for {
 		rec, err = src.Read(ctx)
@@ -286,7 +286,7 @@ func cleanUp(client Client) error {
 }
 
 // configures the source with the given configs and establishes a connection to Marketo
-func configAndOpen(ctx context.Context, s *source.Source, pos sdk.Position) error {
+func configAndOpen(ctx context.Context, s *source.Source, pos opencdc.Position) error {
 	err := s.Configure(ctx, getConfigs())
 	if err != nil {
 		return err

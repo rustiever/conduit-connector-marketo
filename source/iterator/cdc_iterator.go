@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	marketoclient "github.com/rustiever/conduit-connector-marketo/marketo-client"
 	"github.com/rustiever/conduit-connector-marketo/source/position"
@@ -93,14 +94,14 @@ func (c *CDCIterator) HasNext(ctx context.Context) bool {
 }
 
 // returns Next record from the iterator's buffer, otherwise returns error.
-func (c *CDCIterator) Next(ctx context.Context) (sdk.Record, error) {
+func (c *CDCIterator) Next(ctx context.Context) (opencdc.Record, error) {
 	select {
 	case r := <-c.buffer:
 		return c.prepareRecord(r)
 	case <-c.tomb.Dead():
-		return sdk.Record{}, c.tomb.Err()
+		return opencdc.Record{}, c.tomb.Err()
 	case <-ctx.Done():
-		return sdk.Record{}, ctx.Err()
+		return opencdc.Record{}, ctx.Err()
 	}
 }
 
@@ -110,8 +111,8 @@ func (c *CDCIterator) Stop() {
 	c.tomb.Kill(errors.New("cdc iterator is stopped"))
 }
 
-// returns record in the format of sdk.Record
-func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
+// returns record in the format of opencdc.Record
+func (c *CDCIterator) prepareRecord(r Record) (opencdc.Record, error) {
 	key := strconv.Itoa(r.id)
 	if r.deleted {
 		position := position.Position{
@@ -122,21 +123,21 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 		}
 		pos, err := position.ToRecordPosition()
 		if err != nil {
-			return sdk.Record{}, err
+			return opencdc.Record{}, err
 		}
 
-		metadata := make(sdk.Metadata)
+		metadata := make(opencdc.Metadata)
 		metadata.SetCreatedAt(time.Now())
 
-		return sdk.Util.Source.NewRecordDelete(pos, metadata, sdk.RawData(key)), nil
+		return sdk.Util.Source.NewRecordDelete(pos, metadata, opencdc.RawData(key), nil), nil
 	}
 	createdAt, err := time.Parse(time.RFC3339, fmt.Sprintf("%s", r.data["createdAt"]))
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("error parsing createdAt %w", err)
+		return opencdc.Record{}, fmt.Errorf("error parsing createdAt %w", err)
 	}
 	updatedAt, err := time.Parse(time.RFC3339, fmt.Sprintf("%s", r.data["updatedAt"]))
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("error parsing updatedAt %w", err)
+		return opencdc.Record{}, fmt.Errorf("error parsing updatedAt %w", err)
 	}
 	position, _ := position.Position{
 		Type:      position.TypeCDC,
@@ -146,19 +147,19 @@ func (c *CDCIterator) prepareRecord(r Record) (sdk.Record, error) {
 	}.ToRecordPosition()
 	r.data["id"] = key
 
-	metadata := make(sdk.Metadata)
+	metadata := make(opencdc.Metadata)
 	metadata["id"] = key
 	metadata.SetCreatedAt(createdAt)
 	metadata["updatedAt"] = strconv.FormatInt(updatedAt.UnixNano(), 10)
 
 	if createdAt != updatedAt {
 		return sdk.Util.Source.NewRecordUpdate(
-			position, metadata, sdk.RawData(key), nil, sdk.StructuredData(r.data),
+			position, metadata, opencdc.RawData(key), nil, opencdc.StructuredData(r.data),
 		), nil
 	}
 
 	return sdk.Util.Source.NewRecordCreate(
-		position, metadata, sdk.RawData(key), sdk.StructuredData(r.data),
+		position, metadata, opencdc.RawData(key), opencdc.StructuredData(r.data),
 	), nil
 }
 
