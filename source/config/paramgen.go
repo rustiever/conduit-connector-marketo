@@ -49,7 +49,7 @@ func (SourceConfig) Parameters() map[string]config.Parameter {
 			Validations: []config.Validation{},
 		},
 		SourceConfigPollingPeriod: {
-			Default:     "",
+			Default:     "1m",
 			Description: "PollingPeriod is the polling time for CDC mode. Less than 10s is not recommended.",
 			Type:        config.ParameterTypeDuration,
 			Validations: []config.Validation{},

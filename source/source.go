@@ -65,6 +65,8 @@ func (s *Source) Configure(ctx context.Context, cfg commonsConfig.Config) error 
 
 	if len(s.config.Fields) != 0 {
 		s.config.Fields = append([]string{"id", "createdAt", "updatedAt"}, s.config.Fields...)
+	} else {
+		s.config.Fields = []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
 	}
 
 	logger.Trace().Msg("Successfully Configured the Source Connector")

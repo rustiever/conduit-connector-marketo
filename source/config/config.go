@@ -20,19 +20,13 @@ import (
 	"github.com/rustiever/conduit-connector-marketo/config"
 )
 
-const (
-	// DefaultPollingPeriod is the value assumed for the pooling period when the
-	// config omits the polling period parameter.
-	DefaultPollingPeriod = time.Minute
-)
-
 //go:generate paramgen -output=paramgen.go SourceConfig
 
 // SourceConfig represents source configuration with GCS configurations.
 type SourceConfig struct {
 	config.Config
 	// PollingPeriod is the polling time for CDC mode. Less than 10s is not recommended.
-	PollingPeriod time.Duration `json:"pollingPeriod"`
+	PollingPeriod time.Duration `json:"pollingPeriod" default:"1m"`
 	// SnapshotInitialDate is the date from which the snapshot iterator initially starts getting records.
 	SnapshotInitialDate string `json:"snapshotInitialDate"`
 	// Fields are comma seperated fields to fetch from Marketo Leads.

@@ -65,4 +65,4 @@ The Docker compose file at `test/docker-compose.yml` can be used to run the requ
 - Daily Quota: Subscriptions are allocated 50,000 API calls per day (which resets daily at 12:00AM CST). You can increase your daily quota through your account manager.
 - The connector is able to send record's `Key` as `sdk.RawData` only.
 
-![scarf pixel](https://static.scarf.sh/a.png?x-pxid=)
+![scarf pixel](https://static.scarf.sh/a.png?x-pxid=0d3bd3a2-ebd0-4fa7-840a-26f4fc15c2e9)
