@@ -36,7 +36,7 @@ type SourceConfig struct {
 
 func (c *SourceConfig) Validate() error {
 	if c.PollingPeriod < 0 {
-		fmt.Errorf(
+		return fmt.Errorf(
 			"%q config value should be positive, got %s",
 			SourceConfigPollingPeriod,
 			c.PollingPeriod,
