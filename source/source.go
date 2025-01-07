@@ -63,10 +63,9 @@ func (s *Source) Configure(ctx context.Context, cfg commonsConfig.Config) error 
 		return err
 	}
 
-	if len(s.config.Fields) != 0 {
-		s.config.Fields = append([]string{"id", "createdAt", "updatedAt"}, s.config.Fields...)
-	} else {
-		s.config.Fields = []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
+	err = s.config.Validate()
+	if err != nil {
+		return fmt.Errorf("error validating configuration: %w", err)
 	}
 
 	logger.Trace().Msg("Successfully Configured the Source Connector")

@@ -15,6 +15,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rustiever/conduit-connector-marketo/config"
@@ -31,4 +32,22 @@ type SourceConfig struct {
 	SnapshotInitialDate string `json:"snapshotInitialDate"`
 	// Fields are comma seperated fields to fetch from Marketo Leads.
 	Fields []string `json:"fields"`
+}
+
+func (c *SourceConfig) Validate() error {
+	if c.PollingPeriod < 0 {
+		fmt.Errorf(
+			"%q config value should be positive, got %s",
+			SourceConfigPollingPeriod,
+			c.PollingPeriod,
+		)
+	}
+
+	if len(c.Fields) != 0 {
+		c.Fields = append([]string{"id", "createdAt", "updatedAt"}, c.Fields...)
+	} else {
+		c.Fields = []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
+	}
+
+	return nil
 }
