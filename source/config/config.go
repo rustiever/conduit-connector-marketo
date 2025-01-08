@@ -31,7 +31,7 @@ type SourceConfig struct {
 	// SnapshotInitialDate is the date from which the snapshot iterator initially starts getting records.
 	SnapshotInitialDate string `json:"snapshotInitialDate"`
 	// Fields are comma seperated fields to fetch from Marketo Leads.
-	Fields []string `json:"fields"`
+	Fields []string `json:"fields" default:"id,createdAt,updatedAt,firstName,lastName,email"`
 }
 
 func (c *SourceConfig) Validate() error {
@@ -45,8 +45,6 @@ func (c *SourceConfig) Validate() error {
 
 	if len(c.Fields) != 0 {
 		c.Fields = append([]string{"id", "createdAt", "updatedAt"}, c.Fields...)
-	} else {
-		c.Fields = []string{"id", "createdAt", "updatedAt", "firstName", "lastName", "email"}
 	}
 
 	return nil

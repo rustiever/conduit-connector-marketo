@@ -43,7 +43,7 @@ func (SourceConfig) Parameters() map[string]config.Parameter {
 			},
 		},
 		SourceConfigFields: {
-			Default:     "",
+			Default:     "id,createdAt,updatedAt,firstName,lastName,email",
 			Description: "Fields are comma seperated fields to fetch from Marketo Leads.",
 			Type:        config.ParameterTypeString,
 			Validations: []config.Validation{},
