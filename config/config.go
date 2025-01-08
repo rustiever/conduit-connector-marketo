@@ -14,84 +14,12 @@
 
 package config
 
-import (
-	"context"
-	"errors"
-	"fmt"
-
-	sdk "github.com/conduitio/conduit-connector-sdk"
-)
-
-const (
-	// ID: Marketo client ID
-	ClientID = "clientID"
-	// Secret: Marketo client secret
-	ClientSecret = "clientSecret"
-	// ClientEndpoint: https://xxx-xxx-xxx.mktorest.com
-	ClientEndpoint = "clientEndpoint"
-)
-
-var (
-	ErrEmptyConfig = errors.New("missing or empty config")
-)
-
-// Config represents configuration needed for Marketo
-
+// Config represents configuration needed for Marketo.
 type Config struct {
-	ClientID       string
-	ClientSecret   string
-	ClientEndpoint string
-}
-
-// Parse attempts to parse plugins.Config into a Config struct
-func ParseGlobalConfig(ctx context.Context, cfg map[string]string) (Config, error) {
-	logger := sdk.Logger(ctx).With().Str("Method", "ParseGlobalConfig").Logger()
-	logger.Trace().Msg("Started Parsing the config")
-
-	err := checkEmpty(cfg)
-	if err != nil {
-		logger.Error().Stack().Err(err).Msg("Error While Check Empty")
-		return Config{}, err
-	}
-
-	clientID, ok := cfg[ClientID]
-	if !ok {
-		err := requiredConfigErr(ClientID)
-		logger.Error().Stack().Err(err).Msgf("Error While Parsing %s", ClientID)
-		return Config{}, err
-	}
-
-	clientSecret, ok := cfg[ClientSecret]
-	if !ok {
-		err := requiredConfigErr(ClientSecret)
-		logger.Error().Stack().Err(err).Msgf("Error While Parsing %s", ClientSecret)
-		return Config{}, err
-	}
-
-	endpoint, ok := cfg[ClientEndpoint]
-	if !ok {
-		err := requiredConfigErr(ClientEndpoint)
-		logger.Error().Stack().Err(err).Msgf("Error While Parsing %s", ClientEndpoint)
-		return Config{}, err
-	}
-
-	logger.Trace().Msg("Successfully Parsed the config")
-	config := Config{
-		ClientID:       clientID,
-		ClientSecret:   clientSecret,
-		ClientEndpoint: endpoint,
-	}
-
-	return config, nil
-}
-
-func requiredConfigErr(name string) error {
-	return fmt.Errorf("%q config value must be set", name)
-}
-
-func checkEmpty(cfg map[string]string) error {
-	if len(cfg) == 0 {
-		return ErrEmptyConfig
-	}
-	return nil
+	// ClientID is the Client ID for Marketo Instance.
+	ClientID string `json:"clientID" validate:"required"`
+	// ClientSecret is the Client Secret for Marketo Instance.
+	ClientSecret string `json:"clientSecret" validate:"required"`
+	// ClientEndpoint is the Endpoint for Marketo Instance.
+	ClientEndpoint string `json:"clientEndpoint" validate:"required"`
 }
