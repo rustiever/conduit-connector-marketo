@@ -8,6 +8,7 @@ require (
 	github.com/SpeakData/minimarketo v0.0.0-20170821092521-29339e452f44
 	github.com/conduitio/conduit-commons v0.5.0
 	github.com/conduitio/conduit-connector-sdk v0.12.0
+	github.com/golangci/golangci-lint v1.62.2
 	github.com/goombaio/namegenerator v0.0.0-20181006234301-989e774b106e
 	github.com/jpillora/backoff v1.0.0
 	github.com/matryer/is v1.4.1
@@ -82,7 +83,6 @@ require (
 	github.com/golangci/dupl v0.0.0-20180902072040-3e9179ac440a // indirect
 	github.com/golangci/go-printf-func-name v0.1.0 // indirect
 	github.com/golangci/gofmt v0.0.0-20240816233607-d8596aa466a9 // indirect
-	github.com/golangci/golangci-lint v1.62.2 // indirect
 	github.com/golangci/misspell v0.6.0 // indirect
 	github.com/golangci/modinfo v0.3.4 // indirect
 	github.com/golangci/plugin-module-register v0.1.1 // indirect
